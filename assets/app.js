@@ -477,7 +477,14 @@ ${text}`;
     if (total >= 80) return '强推荐进入下一轮';
     if (total >= 65) return '推荐进入下一轮';
     if (total >= 50) return '待定，建议再聊聊';
-    return '暂不建议推进';
+    return '暂不建议推进'; // 仅团队内部使用，不展示给同学
+  }
+
+  function publicVerdict(total) {
+    if (total >= 80) return '强推荐进入下一轮';
+    if (total >= 65) return '推荐进入下一轮';
+    if (total >= 50) return '待定，建议再聊聊';
+    return '已完成评估，请等待团队联系';
   }
 
   function buildReport() {
@@ -498,6 +505,7 @@ ${text}`;
       exp: $('#cand-exp').value,
       total: clamp(total, 0, 100),
       verdict: verdictOf(total),
+      verdictText: publicVerdict(total),
       parts, dims,
       fit: computeFit(mcq.percent),
       intro: state.introScore,
@@ -532,7 +540,7 @@ ${text}`;
     $('#report').innerHTML = `
       <div class="big-score">
         <b>${fmt(r.total, 1)}</b><span>/ 100 综合评分</span>
-        <span class="verdict">${esc(r.verdict)}</span>
+        <span class="verdict">${esc(r.verdictText || r.verdict)}</span>
       </div>
       <p class="hint">${esc(r.name)} · ${esc(r.direction)} · ${esc(r.exp)} · ${new Date(r.createdAt).toLocaleString('zh-CN')}</p>
       <div class="split">${partsHtml}</div>

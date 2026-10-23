@@ -144,6 +144,7 @@ def compute_fit(percent: dict) -> list[dict]:
 
 
 def verdict_of(total: float) -> str:
+    """团队内部结论，不直接展示给同学。"""
     if total >= 80:
         return "强推荐进入下一轮"
     if total >= 65:
@@ -151,6 +152,17 @@ def verdict_of(total: float) -> str:
     if total >= 50:
         return "待定，建议补面"
     return "暂不建议推进"
+
+
+def public_verdict(total: float) -> str:
+    """展示给同学的结论（不出现负面结论）。"""
+    if total >= 80:
+        return "强推荐进入下一轮"
+    if total >= 65:
+        return "推荐进入下一轮"
+    if total >= 50:
+        return "待定，建议再聊聊"
+    return "已完成评估，请等待团队联系"
 
 
 def bar(label: str, value: float) -> None:
@@ -350,7 +362,7 @@ if st.button("生成评分", type="primary"):
         report = {
             "candidate": {"name": name or "匿名候选人", "direction": d["name"], "directionId": dir_id, "exp": exp},
             "scores": {
-                "total": round(total, 1), "verdict": verdict_of(total),
+                "total": round(total, 1), "verdict": verdict_of(total), "verdict_public": public_verdict(total),
                 "parts": [{"name": p[0], "score": round(p[1], 1), "weight": p[2]} for p in parts],
                 "dims": [{"label": DATA["dimensions"][k]["label"], "type": DATA["dimensions"][k]["type"], "value": round(m["percent"][k], 1)} for k in dim_keys()],
                 "fit": compute_fit(m["percent"]),
@@ -373,7 +385,7 @@ report = st.session_state["report"]
 if report:
     s = report["scores"]
     c1, c2 = st.columns([1, 2])
-    c1.metric("综合评分", f"{s['total']} / 100", s["verdict"])
+    c1.metric("综合评分", f"{s['total']} / 100", s.get("verdict_public", s["verdict"]))
     with c2:
         for p in s["parts"]:
             st.progress(min(1.0, p["score"] / 100), text=f"{p['name']}：{p['score']}（权重 {round(p['weight'] / sum(x['weight'] for x in s['parts']) * 100)}%）")
