@@ -112,7 +112,7 @@
       $('#result').innerHTML = `
         <div class="big-score"><b>${fmt(data.total, 1)}</b><span>/ 100 综合评分</span>
           <span class="verdict">${esc(data.verdict || '')}</span></div>
-        <p class="hint">${esc(c.name || '同学')} · ${esc(c.direction || '')} · ${esc(c.exp || '')} · ${esc(data.createdAt || '')}</p>
+        <p class="hint">${esc(c.name || '同学')} · ${esc(c.contact || '')} · ${esc(c.direction || '')} · ${esc(c.exp || '')} · ${esc(data.createdAt || '')}</p>
         ${(data.parts || []).map((p) => bar(p.name, p.score)).join('')}
         <h3>四维画像</h3>
         <div class="dim-grid">${(data.dims || []).map((d) => bar(d.label, d.value)).join('')}</div>
@@ -171,7 +171,7 @@
     $('#result').innerHTML = `
       <div class="big-score"><b>${fmt(s.total, 1)}</b><span>/ 100 综合评分</span>
         <span class="verdict">${esc(s.verdict || '')}</span></div>
-      <p class="hint">${esc(c.name || '同学')} · ${esc(c.direction || '')} · ${esc(c.exp || '')} · ${esc(data.createdAt || '')}</p>
+      <p class="hint">${esc(c.name || '同学')} · ${esc(c.contact || '')} · ${esc(c.direction || '')} · ${esc(c.exp || '')} · ${esc(data.createdAt || '')}</p>
       ${s.gradeBonus ? `<p class="hint">年级加分：+${fmt(s.gradeBonus)}（原始分 ${fmt(s.baseTotal, 1)}，加分后 ${fmt(s.total, 1)}）</p>` : ''}
       <div class="split">${parts}</div>
       <h3>四维画像</h3><div class="dim-grid">${dims}</div>

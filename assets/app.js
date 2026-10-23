@@ -15,6 +15,7 @@
   const state = {
     data: null,
     direction: 'tech',
+    contact: '',
     answers: {},
     intro: '',
     introScore: null,
@@ -517,6 +518,7 @@ ${text}`;
     })).sort((a, b) => a.value - b.value);
     return {
       name: ($('#cand-name').value || '同学').trim(),
+      contact: ($('#cand-contact') ? $('#cand-contact').value : '').trim(),
       direction: dir().name,
       directionId: state.direction,
       exp: $('#cand-exp').value,
@@ -610,7 +612,7 @@ ${text}`;
       mode: 'summary',
       to: state.data.mailTo,
       createdAt: new Date().toISOString(),
-      candidate: { name: report.name, direction: report.direction, exp: report.exp },
+      candidate: { name: report.name, direction: report.direction, exp: report.exp, contact: report.contact },
       total: Math.round(report.total * 10) / 10,
       verdict: report.verdict,
       parts: report.parts.map((p) => ({ name: p.name, score: Math.round(p.score * 10) / 10 })),
@@ -629,7 +631,7 @@ ${text}`;
       mode: 'full',
       to: state.data.mailTo,
       createdAt: new Date().toISOString(),
-      candidate: { name: report.name, direction: report.direction, directionId: report.directionId, exp: report.exp },
+      candidate: { name: report.name, direction: report.direction, directionId: report.directionId, exp: report.exp, contact: report.contact },
       scores: {
         total: Math.round(report.total * 10) / 10, verdict: report.verdict,
         baseTotal: Math.round((report.baseTotal || report.total) * 10) / 10,
@@ -661,6 +663,7 @@ ${text}`;
     return `金种子杯 · 菌护禾 团队招募
 
 同学：${r.name || ''}
+联系方式：${r.contact || '（未填）'}
 方向：${r.direction || ''}
 综合分：${fmt(r.total, 1)} / 100
 
@@ -863,7 +866,7 @@ ${JSON.stringify(pkg)}
   function saveDraft() {
     try {
       localStorage.setItem(DRAFT_KEY, JSON.stringify({
-        direction: state.direction, answers: state.answers, intro: state.intro, introTries: state.introTries,
+        direction: state.direction, contact: state.contact, answers: state.answers, intro: state.intro, introTries: state.introTries,
       }));
     } catch (_) {}
   }
@@ -872,6 +875,7 @@ ${JSON.stringify(pkg)}
       const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}');
       if (d && typeof d === 'object') {
         if (d.direction) state.direction = d.direction;
+        if (typeof d.contact === 'string') state.contact = d.contact;
         if (d.answers) state.answers = d.answers;
         if (typeof d.intro === 'string') state.intro = d.intro;
         if (Number.isFinite(d.introTries)) state.introTries = d.introTries;
@@ -927,6 +931,7 @@ ${JSON.stringify(pkg)}
   /* ---------------- 事件 ---------------- */
   function bind() {
     $('#cand-name').addEventListener('input', saveDraft);
+    if ($('#cand-contact')) $('#cand-contact').addEventListener('input', () => { state.contact = $('#cand-contact').value; saveDraft(); });
     $('#cand-exp').addEventListener('change', saveDraft);
     $('#intro-text').addEventListener('input', () => {
       state.intro = $('#intro-text').value;
@@ -936,6 +941,14 @@ ${JSON.stringify(pkg)}
 
     if ($('#btn-start-eval')) $('#btn-start-eval').addEventListener('click', () => { hideNotice($('#mcq-notice')); goStep(2); });
     if ($('#btn-to-step3')) $('#btn-to-step3').addEventListener('click', () => {
+      const contact = ($('#cand-contact') ? $('#cand-contact').value : '').trim();
+      if (contact.length < 5) {
+        $('#cand-contact').style.borderColor = '#a11212';
+        $('#cand-contact').focus();
+        toast('请先填写手机号或微信号（团队要联系你）', 4200, 'err');
+        return;
+      }
+      $('#cand-contact').style.borderColor = '';
       const qs = questionsFor(state.direction);
       const missing = qs.filter((q) => state.answers[q.id] === undefined);
       if (missing.length) {
@@ -1006,6 +1019,7 @@ ${JSON.stringify(pkg)}
       renderTeam();
       renderDirections();
       renderMCQ();
+      if ($('#cand-contact')) $('#cand-contact').value = state.contact || '';
       $('#intro-text').value = state.intro;
       $('#intro-count').textContent = `${state.intro.length} / 3000`;
       refreshIntroButton();
@@ -1023,6 +1037,8 @@ ${JSON.stringify(pkg)}
     $('#cand-direction').value = 'tech';
     markDirection();
     $('#cand-name').value = '演示同学';
+    state.contact = '演示联系方式 13800000000';
+    if ($('#cand-contact')) $('#cand-contact').value = state.contact;
     state.answers = {};
     questionsFor('tech').forEach((q, i) => { state.answers[q.id] = [1, 2, 1, 1, 2][i] || 1; });
     renderMCQ();

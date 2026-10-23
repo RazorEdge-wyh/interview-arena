@@ -81,7 +81,7 @@ def encrypt_report(payload: dict) -> dict:
     }
 
 
-def send_email(pkg: dict, candidate: str, total: float) -> str:
+def send_email(pkg: dict, candidate: str, total: float, contact: str = "") -> str:
     host = secret("SMTP_HOST")
     if not host:
         return "SMTP 未配置：请下载/复制密文后手动发送"
@@ -194,6 +194,7 @@ with st.sidebar:
     st.header("🌱 金种子杯 · 菌护禾")
     st.caption("情境测评 · 自我介绍 · AI 真实面试 · 评分")
     name = st.text_input("姓名 / 昵称", placeholder="同学")
+    contact = st.text_input("联系方式（手机号/微信）", placeholder="团队联系你用的手机号或微信号")
     dir_id = st.selectbox("方向", list(DIRECTIONS), format_func=lambda x: DIRECTIONS[x]["name"], key="dir_sel")
     if dir_id != st.session_state["direction"]:
         st.session_state["direction"] = dir_id
@@ -371,7 +372,7 @@ if st.button("生成评分", type="primary"):
         base_total = sum(p[1] * p[2] for p in parts) / wsum
         total = base_total + grade_bonus(exp)
         report = {
-            "candidate": {"name": name or "匿名候选人", "direction": d["name"], "directionId": dir_id, "exp": exp},
+            "candidate": {"name": name or "匿名候选人", "contact": contact, "direction": d["name"], "directionId": dir_id, "exp": exp},
             "scores": {
                 "total": round(total, 1), "baseTotal": round(base_total, 1), "gradeBonus": grade_bonus(exp), "verdict": verdict_of(total), "verdict_public": public_verdict(total),
                 "parts": [{"name": p[0], "score": round(p[1], 1), "weight": p[2]} for p in parts],
@@ -415,7 +416,7 @@ if report:
     col1, col2 = st.columns(2)
     if col1.button("发送邮件给团队", type="primary"):
         try:
-            st.success(send_email(pkg, report["candidate"]["name"], s["total"]))
+            st.success(send_email(pkg, report["candidate"]["name"], s["total"], report["candidate"].get("contact", "")))
         except Exception as exc:
             st.error(f"发送失败：{exc}")
     col2.download_button("下载邮件内容文件", data=json.dumps(pkg, ensure_ascii=False).encode(), file_name="菌护禾-面试结果.json", mime="application/json")
