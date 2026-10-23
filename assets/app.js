@@ -1,4 +1,4 @@
-﻿/* Interview Arena — 浏览器端面试评估站
+/* Interview Arena — 浏览器端面试评估站
  * 纯静态：无后端、无数据库；AI 调用可选（用户自带 Key）；结果用公钥混合加密后交给候选人自行发送。
  */
 (() => {
@@ -44,11 +44,40 @@
   function getSettings() {
     let s = {};
     try { s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); } catch (_) {}
+    const cfg = (typeof window !== 'undefined' && window.__IA_CONFIG__) || {};
     return {
-      baseUrl: (s.baseUrl || 'https://api.deepseek.com').replace(/\/+$/, ''),
-      model: s.model || 'deepseek-chat',
-      apiKey: s.apiKey || '',
+      baseUrl: (s.baseUrl || cfg.baseUrl || 'https://api.deepseek.com').replace(/\/+$/, ''),
+      model: s.model || cfg.model || 'deepseek-chat',
+      apiKey: s.apiKey || cfg.apiKey || '',
     };
+  }
+
+  /* 通过 URL 参数一次性写入本机（不写进公开仓库）：
+   *   ?key=sk-xxx&model=deepseek-flash&settings=1
+   * 写入后自动从地址栏移除 key，避免被截图/分享带出去。
+   */
+  function seedSettingsFromUrl() {
+    let params;
+    try { params = new URLSearchParams(location.search); } catch (_) { return; }
+    const urlKey = params.get('key') || '';
+    const urlModel = params.get('model') || '';
+    const urlBase = params.get('base') || '';
+    if (!urlKey && !urlModel && !urlBase) return;
+    const cur = getSettings();
+    const next = {
+      baseUrl: (urlBase || cur.baseUrl || 'https://api.deepseek.com').replace(/\/+$/, ''),
+      model: urlModel || cur.model || 'deepseek-chat',
+      apiKey: urlKey || cur.apiKey || '',
+    };
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(next)); } catch (_) {}
+    // 清理地址栏里的 key（保留其它参数）
+    params.delete('key');
+    params.delete('model');
+    params.delete('base');
+    const qs = params.toString();
+    const clean = location.pathname + (qs ? '?' + qs : '') + location.hash;
+    try { history.replaceState(null, '', clean); } catch (_) {}
+    if (urlKey) setTimeout(() => toast('已接入 AI（Key 仅存本机，不上传）', 3200), 600);
   }
 
   function hasAI() { return !!getSettings().apiKey; }
@@ -1018,6 +1047,7 @@ ${state.qa.map((x, i) => `【追问${i + 1}】${x.q}\n【回答】${x.answer}`).
 
   async function init() {
     try {
+      seedSettingsFromUrl();
       state.data = await loadData();
       $('#disclaimer').textContent = state.data.disclaimer || '';
       restoreDraft();
@@ -1026,7 +1056,16 @@ ${state.qa.map((x, i) => `【追问${i + 1}】${x.q}\n【回答】${x.answer}`).
       $('#intro-text').value = state.intro;
       $('#intro-count').textContent = `${state.intro.length} / 3000`;
       bind();
-      const demo = new URLSearchParams(location.search).get('demo') === '1';
+      let params = new URLSearchParams(location.search);
+      if (params.get('settings') === '1') {
+        $('#settings').classList.remove('hidden');
+        const cfg = getSettings();
+        $('#cfg-base').value = cfg.baseUrl;
+        $('#cfg-model').value = cfg.model;
+        $('#cfg-key').value = cfg.apiKey;
+        $('#cfg-status').textContent = cfg.apiKey ? '已配置（仅存本机）' : '未配置（本地规则评分）';
+      }
+      const demo = params.get('demo') === '1';
       if (demo) { runDemo(); } else { goStep(1); }
     } catch (err) {
       console.error(err);

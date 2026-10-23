@@ -1,4 +1,4 @@
-# secrets / keys — never commit
+﻿# secrets / keys — never commit
 _keys/
 *.pem
 *.key
@@ -28,3 +28,6 @@ Thumbs.db
 _scratch/
 preview*/
 *.log
+
+# local AI config (never commit real keys)
+assets/config.js
