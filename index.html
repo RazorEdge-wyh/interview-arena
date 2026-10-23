@@ -1,10 +1,10 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>菌护禾 · 团队招募评估</title>
-<meta name="description" content="菌护禾团队招募评估：4 道田间情境题、自我介绍与 AI 追问评分、人岗匹配，可跳转邮件发送给团队。所有数据只在浏览器内处理。" />
+<meta name="description" content="菌护禾团队招募评估：5 道情境题、AI 真实多轮面试、自我介绍评分；分数展示给候选人，详细分析加密发送给团队。" />
 <link rel="stylesheet" href="assets/styles.css" />
 </head>
 <body>
@@ -14,30 +14,26 @@
     <span class="logo">菌</span>
     <div>
       <h1>菌护禾 · 团队招募</h1>
-      <p class="sub">田间情境 · 能力性格 · 表达追问 · 人岗匹配</p>
+      <p class="sub">情境测评 · 自我介绍 · AI 真实面试 · 评分</p>
     </div>
   </div>
   <div class="topbar-right">
-    <span class="badge">浏览器内处理</span>
     <button id="btn-settings" class="btn small ghost" type="button">AI 设置</button>
   </div>
 </header>
 
 <section id="settings" class="panel settings hidden">
   <div class="panel-head">
-    <h2>AI 设置（可选）</h2>
+    <h2>AI 设置</h2>
     <button id="btn-settings-close" class="btn small ghost" type="button">收起</button>
   </div>
-  <p class="hint">
-    填写自己的 API Key 后，自我介绍与追问评分调用大模型；不填则使用本地规则评分。
-    Key 仅保存在本机浏览器，不会上传。
-  </p>
+  <p class="hint">站点已预置 AI，可不用改；如需换 Key 或模型可在这里改，配置只存本机浏览器。</p>
   <div class="grid-3">
     <label>API Base URL
       <input id="cfg-base" type="url" placeholder="https://api.deepseek.com" autocomplete="off" />
     </label>
     <label>模型名
-      <input id="cfg-model" type="text" placeholder="deepseek-chat" autocomplete="off" />
+      <input id="cfg-model" type="text" placeholder="deepseek-flash" autocomplete="off" />
     </label>
     <label>API Key
       <input id="cfg-key" type="password" placeholder="sk-..." autocomplete="off" />
@@ -45,7 +41,7 @@
   </div>
   <div class="row">
     <button id="btn-settings-save" class="btn primary" type="button">保存</button>
-    <button id="btn-settings-clear" class="btn ghost" type="button">清除 Key</button>
+    <button id="btn-settings-clear" class="btn ghost" type="button">清除</button>
     <span id="cfg-status" class="hint"></span>
   </div>
 </section>
@@ -55,10 +51,9 @@
     <ol>
       <li data-step="1" class="active"><span>01</span>情境测评</li>
       <li data-step="2"><span>02</span>自我介绍</li>
-      <li data-step="3"><span>03</span>AI 追问</li>
-      <li data-step="4"><span>04</span>评估报告</li>
+      <li data-step="3"><span>03</span>AI 面试</li>
+      <li data-step="4"><span>04</span>评分</li>
     </ol>
-    <div class="progress"><div id="progress-bar"></div></div>
   </nav>
 
   <!-- Step 1 -->
@@ -72,9 +67,9 @@
     </div>
 
     <div class="card">
-      <h2>在招岗位</h2>
-      <p class="hint">点选目标岗位，报告会按该岗位的能力侧重给出人岗匹配；不确定可选“暂不确定”。</p>
-      <div id="role-cards" class="role-grid"></div>
+      <h2>选择方向</h2>
+      <p class="hint">只分三个大方向；选完后 5 道题会自动适配该方向。</p>
+      <div id="direction-cards" class="role-grid"></div>
     </div>
 
     <div class="card">
@@ -83,8 +78,8 @@
         <label>姓名 / 昵称
           <input id="cand-name" type="text" placeholder="例如：小李" autocomplete="off" />
         </label>
-        <label>目标岗位
-          <select id="cand-role"></select>
+        <label>方向
+          <select id="cand-direction"></select>
         </label>
         <label>相关经验
           <select id="cand-exp">
@@ -95,7 +90,7 @@
           </select>
         </label>
       </div>
-      <p class="hint">以下 4 题来自菌护禾真实场景，无标准答案，按第一反应作答。</p>
+      <p class="hint">共 5 题：2 道通用、1 道项目、2 道方向专业题；无标准答案，按第一反应作答。</p>
     </div>
 
     <div id="mcq-list"></div>
@@ -109,13 +104,13 @@
   <section id="step2" class="step hidden">
     <div class="card">
       <h2>自我介绍</h2>
-      <p class="hint">250–500 字：现状 → 做过什么（带数字）→ 结果 → 反思与下一步。</p>
+      <p class="hint">250–500 字：现状 → 做过什么（带数字）→ 结果 → 反思与下一步。AI 会按你的方向评分。</p>
       <textarea id="intro-text" rows="12" maxlength="3000" placeholder="我是……目前在……做过……其中最有代表性的是……结果是……我学到了……接下来我想……"></textarea>
       <div class="row between">
         <span id="intro-count" class="hint">0 / 3000</span>
         <div class="row">
-          <button id="btn-score-intro" class="btn primary" type="button">AI 评分</button>
-          <button id="btn-to-step3" class="btn ghost" type="button">跳过，进入问答</button>
+          <button id="btn-score-intro" class="btn primary" type="button">保存并评分</button>
+          <button id="btn-to-step3" class="btn ghost" type="button">跳过</button>
         </div>
       </div>
       <div id="intro-result" class="result hidden"></div>
@@ -125,56 +120,47 @@
   <!-- Step 3 -->
   <section id="step3" class="step hidden">
     <div class="card">
-      <h2>AI 追问</h2>
-      <p class="hint">按自我介绍生成 4 个追问（无 Key 时使用固定 4 题），每题 3–6 句，尽量给事实与数字。</p>
+      <h2>AI 面试（真实对话）</h2>
+      <p class="hint">面试官会根据你的自我介绍和方向连续追问 4 轮；结束后由 AI 打分。请像真人面试一样作答。</p>
       <div class="row">
-        <button id="btn-gen-qa" class="btn primary" type="button">生成 4 个追问</button>
-        <span id="qa-status" class="hint"></span>
+        <button id="btn-start-chat" class="btn primary" type="button">开始面试</button>
+        <button id="btn-finish-chat" class="btn ghost" type="button" disabled>结束面试并评分</button>
+        <span id="chat-status" class="hint"></span>
       </div>
-      <div id="qa-list" class="qa-list"></div>
-      <div class="row end hidden" id="qa-submit-row">
-        <button id="btn-score-qa" class="btn primary" type="button">提交并评分</button>
+      <div id="chat-log" class="chat-log"></div>
+      <div class="chat-input-row">
+        <textarea id="chat-input" rows="3" placeholder="输入你的回答（Enter 发送，Shift+Enter 换行）" disabled></textarea>
+        <button id="btn-send-chat" class="btn primary" type="button" disabled>发送</button>
       </div>
-      <div id="qa-result" class="result hidden"></div>
+      <div id="chat-result" class="result hidden"></div>
     </div>
   </section>
 
   <!-- Step 4 -->
   <section id="step4" class="step hidden">
     <div class="card">
-      <h2>评估报告</h2>
+      <h2>评分</h2>
       <div id="report"></div>
     </div>
 
     <div class="card" id="send-card">
-      <h2>发送给团队</h2>
+      <h2>加密分析发送给团队</h2>
       <p class="hint">
-        收件邮箱 <b>2160634966@qq.com</b>。点「打开邮件客户端」会跳转到本机邮件应用，正文已包含分数、自我介绍与问答原文；
-        内容太长时改用「下载 .eml」。
+        页面只展示分数；详细分析（自我介绍点评、每轮面试点评、优势/风险/建议、原始回答）会加密后发到
+        <b>2160634966@qq.com</b> 与 <b>2715240991@qq.com</b>。
       </p>
-      <label class="check">
-        <input type="checkbox" id="mail-include-enc" checked />
-        正文末尾附带加密密文（团队可校验内容未被篡改）
-      </label>
       <div class="row">
         <button id="btn-mail" class="btn primary" type="button">打开邮件客户端</button>
-        <button id="btn-eml" class="btn ghost" type="button">下载 .eml</button>
-        <button id="btn-copy-mail" class="btn ghost" type="button">复制正文</button>
+        <button id="btn-eml" class="btn ghost" type="button">下载 .eml 邮件</button>
+        <button id="btn-copy-mail" class="btn ghost" type="button">复制密文</button>
       </div>
       <p id="mail-status" class="hint"></p>
-      <textarea id="mail-preview" rows="12" readonly placeholder="邮件正文预览"></textarea>
-
+      <textarea id="mail-preview" rows="8" readonly placeholder="加密内容预览"></textarea>
       <details class="adv">
-        <summary>可选：只发送加密报告</summary>
-        <p class="hint">内容压缩后用 AES-256-GCM 加密，AES 密钥再由 RSA-OAEP 公钥包裹；只有团队私钥能解密。</p>
-        <div class="row">
-          <button id="btn-encrypt" class="btn ghost" type="button">生成加密报告</button>
-          <button id="btn-copy" class="btn ghost" type="button" disabled>复制密文</button>
-          <button id="btn-download" class="btn ghost" type="button" disabled>下载 .enc</button>
-          <button id="btn-mail-enc" class="btn ghost" type="button" disabled>发加密邮件</button>
-        </div>
+        <summary>加密内容预览 / 校验</summary>
+        <p class="hint">加密在浏览器内完成：gzip → AES-256-GCM → RSA-OAEP。团队用 /decrypt.html 与私钥解密。</p>
+        <textarea id="enc-output" rows="8" readonly></textarea>
         <p id="enc-status" class="hint"></p>
-        <textarea id="enc-output" rows="8" readonly placeholder="加密结果"></textarea>
       </details>
     </div>
 
@@ -192,8 +178,6 @@
   <a href="decrypt.html">解密工具</a>
   <span>·</span>
   <a href="README.md">说明</a>
-  <span>·</span>
-  <a href="https://github.com/RazorEdge-wyh/interview-arena" target="_blank" rel="noopener">GitHub</a>
 </footer>
 
 <div id="toast" class="toast hidden" role="status"></div>

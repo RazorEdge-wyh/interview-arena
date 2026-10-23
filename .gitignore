@@ -30,4 +30,3 @@ preview*/
 *.log
 
 # local AI config (never commit real keys)
-assets/config.js

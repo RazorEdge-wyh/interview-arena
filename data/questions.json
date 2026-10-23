@@ -1,5 +1,5 @@
 {
-  "version": "2.0.0",
+  "version": "3.0.0",
   "updated": "2026-10-23",
   "team": {
     "name": "菌护禾",
@@ -8,126 +8,166 @@
     "track": "现代农业与大健康产业 / 微生物农业",
     "hiringNote": "本轮招募看重三件事：能下田、能动手、能跨专业协作。岗位与待遇面谈，具体招募事项由团队决定。"
   },
-  "weights": { "mcq": 0.3, "intro": 0.35, "qa": 0.35 },
+  "mailTo": ["2160634966@qq.com", "2715240991@qq.com"],
+  "weights": { "mcq": 0.3, "intro": 0.25, "chat": 0.45 },
   "dimensions": {
     "analysis": { "label": "分析判断", "type": "ability", "desc": "拆解问题、定位原因、基于证据决策" },
     "execution": { "label": "执行推进", "type": "ability", "desc": "把想法落地、推进节奏、交付结果" },
     "collaboration": { "label": "协作沟通", "type": "personality", "desc": "跨专业同步、处理冲突、带动他人" },
     "resilience": { "label": "抗压韧性", "type": "personality", "desc": "面对失败、质疑与不确定时的恢复与成长" }
   },
-  "talentRoles": [
+  "directions": [
     {
-      "id": "microbe",
-      "name": "微生物研发 / 发酵工程师",
-      "mission": "把菌株从实验室做成能下田的剂型，用活菌数说话。",
-      "mustHave": ["微生物学 / 生物工程 / 发酵工程背景", "无菌操作与稀释涂布平板计数", "发酵小试到中试的放大经验"],
-      "niceToHave": ["芽孢杆菌或生防菌经验", "微生物肥料登记材料经验"],
-      "interviewFocus": ["菌株来源与保藏", "活菌计数与区分目标菌", "发酵工艺放大"],
-      "fitWeights": { "analysis": 0.35, "execution": 0.25, "collaboration": 0.2, "resilience": 0.2 }
+      "id": "tech",
+      "name": "技术研发",
+      "mission": "把菌、传感器、泵和供电做成能在棚里连续跑 30 天不坏的东西，用活菌数说话。",
+      "mustHave": ["嵌入式/硬件、数据分析或微生物发酵任一方向", "能动手做样机或做实验", "能读文献并写出可复现的方法"],
+      "fitWeights": { "analysis": 0.3, "execution": 0.4, "collaboration": 0.15, "resilience": 0.15 },
+      "roleQuestions": [
+        {
+          "id": "t1",
+          "tag": "技术 · 现场故障",
+          "title": "样机在示范户棚里连续误触发，农户说要拆掉。你到现场后先做什么？",
+          "options": [
+            { "text": "先把设备拆回来，避免继续给农户添麻烦", "scores": { "analysis": 2, "execution": 4, "collaboration": 3, "resilience": 3 } },
+            { "text": "先看日志和当天温湿度，判断是阈值、传感器还是安装问题，再和农户约复装时间", "scores": { "analysis": 5, "execution": 4, "collaboration": 5, "resilience": 4 } },
+            { "text": "解释这是个别现象，请农户再给一周时间", "scores": { "analysis": 2, "execution": 2, "collaboration": 2, "resilience": 3 } },
+            { "text": "先答应赔一季菌剂钱，把设备留下来继续观察", "scores": { "analysis": 1, "execution": 3, "collaboration": 4, "resilience": 4 } }
+          ]
+        },
+        {
+          "id": "t2",
+          "tag": "技术 · 取舍",
+          "title": "传感器要标定、成本要压在 150 元/点以内、还要防潮。三者冲突时你先砍哪个？",
+          "options": [
+            { "text": "先砍标定，用厂商默认参数，便宜且快", "scores": { "analysis": 1, "execution": 3, "collaboration": 2, "resilience": 2 } },
+            { "text": "先砍防潮外壳，用胶带和塑料袋临时处理，把钱留给传感器", "scores": { "analysis": 2, "execution": 4, "collaboration": 2, "resilience": 3 } },
+            { "text": "先做一次小样本对比：标定前后误差差多少、防潮坏损率多少，再按数据砍", "scores": { "analysis": 5, "execution": 4, "collaboration": 3, "resilience": 3 } },
+            { "text": "三个都不砍，去找更便宜的供应商", "scores": { "analysis": 2, "execution": 3, "collaboration": 3, "resilience": 4 } }
+          ]
+        }
+      ]
     },
     {
-      "id": "agronomy",
-      "name": "设施草莓农艺师",
+      "id": "agro",
+      "name": "农艺与试验",
       "mission": "把窗口期落到草莓物候与田间管理上，设计能出结论的试验。",
-      "mustHave": ["园艺 / 植保 / 农学背景", "设施草莓栽培与水肥管理", "田间试验设计（随机区组、重复、取样）"],
-      "niceToHave": ["根际取样与活菌计数经验", "合作社 / 示范户沟通经验"],
-      "interviewFocus": ["缓苗与花芽分化期水分管理", "试验设计与对照设置", "田间异常判断"],
-      "fitWeights": { "analysis": 0.3, "execution": 0.3, "collaboration": 0.2, "resilience": 0.2 }
-    },
-    {
-      "id": "hardware",
-      "name": "嵌入式 / 硬件工程师",
-      "mission": "把传感器、泵、供电做成能在大棚里连续跑 30 天不坏的东西。",
-      "mustHave": ["ESP32 / 单片机开发", "传感器选型与标定（电容式水分、DS18B20）", "低功耗与光伏、电池供电设计"],
-      "niceToHave": ["防水外壳与田间布线", "BOM 成本控制（单点 ≤150 元）"],
-      "interviewFocus": ["传感器漂移与标定", "误触发与故障安全", "成本与可制造性"],
-      "fitWeights": { "analysis": 0.3, "execution": 0.4, "collaboration": 0.15, "resilience": 0.15 }
-    },
-    {
-      "id": "data",
-      "name": "数据 / 算法",
-      "mission": "把水分—活菌数响应曲线与触发规则做成可复用的标定数据。",
-      "mustHave": ["Python / R 数据分析", "试验统计（ANOVA、多重比较）", "传感器数据处理与可视化"],
-      "niceToHave": ["嵌入式日志与边缘计算", "农业数据产品经验"],
-      "interviewFocus": ["统计方法选择", "异常数据与缺失值处理", "从数据到规则"],
-      "fitWeights": { "analysis": 0.4, "execution": 0.3, "collaboration": 0.15, "resilience": 0.15 }
-    },
-    {
-      "id": "bd",
-      "name": "市场 / 合作社 BD",
-      "mission": "找到愿意一起做示范的合作社与农户，并把付费意愿问出来。",
-      "mustHave": ["湖南设施农业 / 草莓产区资源", "合作社、园区、农服公司渠道", "访谈与需求验证能力"],
-      "niceToHave": ["农资渠道经验", "示范田 / 观摩会组织"],
-      "interviewFocus": ["目标客户与决策链", "付费意愿验证", "示范点落地"],
-      "fitWeights": { "analysis": 0.15, "execution": 0.2, "collaboration": 0.35, "resilience": 0.3 }
-    },
-    {
-      "id": "ops",
-      "name": "运营 / 合规 / 财务",
-      "mission": "把登记证、知识产权、基金申报与账算清楚，让团队跑得久。",
-      "mustHave": ["项目申报 / 财务建模", "知识产权与合同基础", "跨部门协调与文档能力"],
-      "niceToHave": ["微生物肥料登记流程经验", "农业补贴 / 基金申报经验"],
-      "interviewFocus": ["登记与合规路径", "单位经济模型", "申报与里程碑管理"],
-      "fitWeights": { "analysis": 0.25, "execution": 0.3, "collaboration": 0.3, "resilience": 0.15 }
-    }
-  ],
-  "questions": [
-    {
-      "id": "q1",
-      "tag": "田间故障 / 农户关系",
-      "title": "样机在示范户棚里连续误触发，农户说要拆掉。你到现场后先做什么？",
-      "options": [
-        { "text": "先把设备拆回来，避免继续给农户添麻烦", "scores": { "analysis": 2, "execution": 4, "collaboration": 3, "resilience": 3 } },
-        { "text": "先看日志和当天温湿度，判断是阈值、传感器还是安装问题，再和农户约复装时间", "scores": { "analysis": 5, "execution": 4, "collaboration": 5, "resilience": 4 } },
-        { "text": "解释这是个别现象，请农户再给一周时间", "scores": { "analysis": 2, "execution": 2, "collaboration": 2, "resilience": 3 } },
-        { "text": "先答应赔一季菌剂钱，把设备留下来继续观察", "scores": { "analysis": 1, "execution": 3, "collaboration": 4, "resilience": 4 } }
+      "mustHave": ["园艺/植保/农学背景", "设施草莓栽培与水肥管理", "田间试验设计（对照、重复、取样）"],
+      "fitWeights": { "analysis": 0.3, "execution": 0.3, "collaboration": 0.2, "resilience": 0.2 },
+      "roleQuestions": [
+        {
+          "id": "a1",
+          "tag": "农艺 · 物候冲突",
+          "title": "农艺经验说“花芽分化期不能补水”，但装置按阈值会自动补。你怎么处理这个冲突？",
+          "options": [
+            { "text": "听经验的，窗口缩到 0–15 天，避开冲突", "scores": { "analysis": 3, "execution": 3, "collaboration": 4, "resilience": 3 } },
+            { "text": "查文献与当地农技资料，把“下限保护”写成可检验的规则，再和硬件同事定阈值", "scores": { "analysis": 5, "execution": 4, "collaboration": 5, "resilience": 4 } },
+            { "text": "先按装置跑，出了问题再改", "scores": { "analysis": 2, "execution": 4, "collaboration": 1, "resilience": 2 } },
+            { "text": "让指导老师决定，自己执行", "scores": { "analysis": 2, "execution": 3, "collaboration": 3, "resilience": 3 } }
+          ]
+        },
+        {
+          "id": "a2",
+          "tag": "农艺 · 试验设计",
+          "title": "做 3 处理 × 3 重复的盆栽试验，第 7 天要取根际土测活菌。取样怎么保证可比？",
+          "options": [
+            { "text": "哪个盆长得好就取哪个，代表性强", "scores": { "analysis": 1, "execution": 2, "collaboration": 1, "resilience": 2 } },
+            { "text": "固定取样位置与方法：抖根取根表 1–2 mm 土，每盆 5 点混合，冰盒运输，当天处理", "scores": { "analysis": 5, "execution": 5, "collaboration": 3, "resilience": 3 } },
+            { "text": "每个处理随机取一盆，测一次就够", "scores": { "analysis": 2, "execution": 2, "collaboration": 2, "resilience": 2 } },
+            { "text": "把土样混在一起测一个平均值", "scores": { "analysis": 1, "execution": 3, "collaboration": 2, "resilience": 2 } }
+          ]
+        }
       ]
     },
     {
-      "id": "q2",
-      "tag": "数据解读 / 结论纪律",
-      "title": "第 7 天活菌数，触发组只比常规接菌高 0.2 个 log，团队里有人说失败了。你会？",
-      "options": [
-        { "text": "承认失败，马上换一个方向", "scores": { "analysis": 2, "execution": 2, "collaboration": 2, "resilience": 2 } },
-        { "text": "先看重复间变异、取样与计数方法，确认 0.2 个 log 是否在误差范围内，再决定下一步", "scores": { "analysis": 5, "execution": 4, "collaboration": 4, "resilience": 4 } },
-        { "text": "把组别标签去掉，让数据重新跑一遍统计", "scores": { "analysis": 1, "execution": 3, "collaboration": 2, "resilience": 2 } },
-        { "text": "先安慰大家，说第 15 天可能就显著了", "scores": { "analysis": 2, "execution": 1, "collaboration": 4, "resilience": 3 } }
-      ]
-    },
-    {
-      "id": "q3",
-      "tag": "跨专业冲突 / 决策",
-      "title": "农艺同事坚持“花芽分化期不能补水”，硬件同事坚持按阈值触发。你作为项目负责人怎么处理？",
-      "options": [
-        { "text": "听农艺的，把窗口缩短到 0–15 天，先避开冲突", "scores": { "analysis": 3, "execution": 3, "collaboration": 4, "resilience": 3 } },
-        { "text": "把两人拉到一起，用文献和试验数据界定“下限保护”边界，定一条可检验的规则", "scores": { "analysis": 5, "execution": 4, "collaboration": 5, "resilience": 4 } },
-        { "text": "先按硬件方案做，出问题再改", "scores": { "analysis": 2, "execution": 4, "collaboration": 1, "resilience": 2 } },
-        { "text": "让指导老师拍板，自己执行", "scores": { "analysis": 2, "execution": 3, "collaboration": 3, "resilience": 3 } }
-      ]
-    },
-    {
-      "id": "q4",
-      "tag": "商业化 / 付费意愿",
-      "title": "合作社愿意试用，但明确说“看到效果再谈钱”。你怎么推进？",
-      "options": [
-        { "text": "免费铺 10 个点，先做出效果再说", "scores": { "analysis": 2, "execution": 4, "collaboration": 3, "resilience": 4 } },
-        { "text": "把“效果”定义成第 7/15 天活菌数与死苗率两个可测指标，约定达标后的付费区间，再签试验协议", "scores": { "analysis": 5, "execution": 5, "collaboration": 4, "resilience": 4 } },
-        { "text": "请合作社理事长帮忙推动，先拿人情换机会", "scores": { "analysis": 2, "execution": 3, "collaboration": 4, "resilience": 3 } },
-        { "text": "换一家更容易谈的合作社", "scores": { "analysis": 3, "execution": 2, "collaboration": 1, "resilience": 2 } }
+      "id": "market",
+      "name": "市场与运营",
+      "mission": "找到愿意一起做示范的合作社与农户，把付费意愿问出来，并把账算清楚。",
+      "mustHave": ["湖南设施农业/草莓产区资源或渠道经验", "访谈与需求验证能力", "定价、财务或项目申报基础"],
+      "fitWeights": { "analysis": 0.15, "execution": 0.25, "collaboration": 0.35, "resilience": 0.25 },
+      "roleQuestions": [
+        {
+          "id": "m1",
+          "tag": "市场 · 付费意愿",
+          "title": "合作社愿意试用，但明确说“看到效果再谈钱”。你怎么推进？",
+          "options": [
+            { "text": "免费铺 10 个点，先做出效果再说", "scores": { "analysis": 2, "execution": 4, "collaboration": 3, "resilience": 4 } },
+            { "text": "把“效果”定义成第 7/15 天活菌数与死苗率两个可测指标，约定达标后的付费区间，再签试验协议", "scores": { "analysis": 5, "execution": 5, "collaboration": 4, "resilience": 4 } },
+            { "text": "请理事长帮忙推动，先拿人情换机会", "scores": { "analysis": 2, "execution": 3, "collaboration": 4, "resilience": 3 } },
+            { "text": "换一家更容易谈的合作社", "scores": { "analysis": 3, "execution": 2, "collaboration": 1, "resilience": 2 } }
+          ]
+        },
+        {
+          "id": "m2",
+          "tag": "市场 · 商业模式",
+          "title": "两种卖法：卖硬件 150 元/点，或卖“窗口期托管服务”199 元/亩·季。你选哪个，为什么？",
+          "options": [
+            { "text": "卖硬件，一次性收钱最简单", "scores": { "analysis": 2, "execution": 3, "collaboration": 2, "resilience": 2 } },
+            { "text": "卖服务，硬件归团队，靠复购与标定数据形成粘性", "scores": { "analysis": 5, "execution": 4, "collaboration": 4, "resilience": 4 } },
+            { "text": "两个都卖，看客户要什么", "scores": { "analysis": 3, "execution": 3, "collaboration": 3, "resilience": 3 } },
+            { "text": "先免费送，等数据出来再定价", "scores": { "analysis": 2, "execution": 2, "collaboration": 3, "resilience": 3 } }
+          ]
+        }
       ]
     }
   ],
+  "generalQuestions": [
+    {
+      "id": "g1",
+      "tag": "通用 · 挫折与复盘",
+      "title": "你连续两次方案被否，接下来最可能做什么？",
+      "options": [
+        { "text": "逐个找评审人问清楚原因，逐条改", "scores": { "analysis": 4, "execution": 4, "collaboration": 4, "resilience": 5 } },
+        { "text": "自己关起门来复盘，重做一版", "scores": { "analysis": 4, "execution": 5, "collaboration": 2, "resilience": 4 } },
+        { "text": "先放一放，等状态好了再说", "scores": { "analysis": 2, "execution": 2, "collaboration": 2, "resilience": 2 } },
+        { "text": "开始怀疑自己是不是不适合这行", "scores": { "analysis": 1, "execution": 1, "collaboration": 1, "resilience": 1 } }
+      ]
+    },
+    {
+      "id": "g2",
+      "tag": "通用 · 协作冲突",
+      "title": "同事负责的部分延迟，导致你的工作也要延期。你会？",
+      "options": [
+        { "text": "不声张，自己熬夜把他的部分补上", "scores": { "analysis": 2, "execution": 5, "collaboration": 2, "resilience": 4 } },
+        { "text": "先同步风险与影响，再和他一起定补救方案", "scores": { "analysis": 4, "execution": 4, "collaboration": 5, "resilience": 4 } },
+        { "text": "直接向主管反馈，请主管协调", "scores": { "analysis": 3, "execution": 2, "collaboration": 3, "resilience": 3 } },
+        { "text": "在群里说明这是他的问题，划清责任", "scores": { "analysis": 2, "execution": 2, "collaboration": 1, "resilience": 2 } }
+      ]
+    }
+  ],
+  "projectQuestion": {
+    "id": "p1",
+    "tag": "项目 · 验证设计",
+    "title": "如果只给你 30 天验证“补墒能把活菌托住”，第一轮试验你会怎么设计？",
+    "options": [
+      { "text": "先在棚里铺 10 个点，直接看产量有没有提升", "scores": { "analysis": 1, "execution": 4, "collaboration": 2, "resilience": 3 } },
+      { "text": "盆栽 3–4 个水分梯度 × 3 重复，第 0/7/15 天测根际活菌数，先验证“水—菌”关系", "scores": { "analysis": 5, "execution": 4, "collaboration": 3, "resilience": 4 } },
+      { "text": "找农户按我们的装置用一季，收集反馈", "scores": { "analysis": 2, "execution": 3, "collaboration": 4, "resilience": 3 } },
+      { "text": "先把装置稳定性跑通 7 天，再考虑试验", "scores": { "analysis": 3, "execution": 5, "collaboration": 2, "resilience": 3 } }
+    ]
+  },
+  "chat": {
+    "rounds": 4,
+    "systemPrompt": "你是菌护禾团队的面试官，正在面试「{direction}」方向的候选人。\n团队与项目：{team}\n职位要求：{mustHave}\n候选人自我介绍：{intro}\n规则：\n1. 一次只问一个问题，中文口语化，不超过 80 字；\n2. 必须结合候选人的自我介绍或上一轮回答追问，不要重复；\n3. 共 {rounds} 轮提问。第 {rounds} 轮问完后，用一句话收尾并提示“可以点击结束面试”；\n4. 只输出你要说的话，不要输出 JSON、不要打分、不要给建议、不要解释规则；\n5. 不要问与岗位无关的隐私问题。",
+    "scoringPrompt": "你是面试官。基于下面这场真实面试对话给候选人打分，只输出 JSON：\n{\"overall\":0,\"perQuestion\":[{\"round\":1,\"score\":0,\"comment\":\"引用候选人原话的具体点评\"}],\"strengths\":[\"2-3条\"],\"risks\":[\"2-3条\"],\"suggestions\":[\"2-3条\"],\"verdict\":\"一句话结论\"}\n要求：每题 0–25 分，overall = 各题之和（0–100）；评论必须引用候选人原话；不要输出 JSON 以外内容。\n\n方向：{direction}\n职位要求：{mustHave}\n候选人自我介绍：{intro}\n\n对话记录：\n{transcript}",
+    "fallbackQuestions": [
+      "先简单介绍一下你自己，以及你为什么想做这个方向？",
+      "说一个你亲手做成、但过程不顺利的事，你具体做了什么？",
+      "如果让你加入菌护禾，前 30 天你会先做什么？",
+      "你觉得自己在这个方向上最大的短板是什么，打算怎么补？"
+    ]
+  },
   "introRubric": [
-    { "key": "structure", "label": "结构清晰", "desc": "能被快速理解：现状—行动—结果—反思的脉络" },
-    { "key": "specificity", "label": "具体可验证", "desc": "有数字、有细节、有可追问的事实（试验 / 样机 / 农户 / 成本）" },
+    { "key": "structure", "label": "结构清晰", "desc": "现状—行动—结果—反思的脉络" },
+    { "key": "specificity", "label": "具体可验证", "desc": "有数字、有细节、有可追问的事实（试验/样机/农户/成本）" },
     { "key": "selfAwareness", "label": "自我认知", "desc": "能说清优势、短板与改进动作" },
-    { "key": "roleFit", "label": "岗位匹配", "desc": "经历与菌护禾某个岗位（微生物 / 农艺 / 硬件 / 数据 / BD / 运营）的要求有明确对应" }
+    { "key": "roleFit", "label": "方向匹配", "desc": "经历与技术研发 / 农艺与试验 / 市场与运营某个方向的要求有明确对应" }
   ],
-  "qaRubric": [
-    { "key": "specificity", "label": "具体性", "desc": "回答有事实、数字、场景，而非泛泛而谈" },
+  "chatRubric": [
+    { "key": "specificity", "label": "具体性", "desc": "回答有事实、数字、场景" },
     { "key": "logic", "label": "逻辑性", "desc": "结论—依据—边界清楚，能自洽" },
     { "key": "reflection", "label": "反思深度", "desc": "能说出为什么、学到什么、下次怎么改" },
-    { "key": "fit", "label": "岗位匹配", "desc": "体现出与菌护禾岗位相关的能力或经验（田间 / 实验室 / 硬件 / 数据 / 渠道）" }
+    { "key": "fit", "label": "方向匹配", "desc": "体现出与目标方向相关的能力或经验" }
   ],
-  "disclaimer": "本工具用于面试准备与菌护禾团队招募参考。评分由规则与 AI 辅助生成，具体招募事项（岗位方向、培养安排、是否录用）由团队根据面试与实际需要决定。"
+  "disclaimer": "本工具用于面试准备与菌护禾团队招募参考。评分由规则与 AI 辅助生成，具体招募事项（方向分配、培养安排、是否录用）由团队根据面试与实际需要决定。"
 }
