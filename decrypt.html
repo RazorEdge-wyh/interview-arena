@@ -3,48 +3,42 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>菌护禾 · 报告解密工具</title>
-<meta name="description" content="在浏览器内用私钥解密菌护禾招募评估的加密报告（AES-256-GCM + RSA-OAEP）。私钥不上传、不落库。" />
+<title>菌护禾 · 面试结果查看</title>
+<meta name="description" content="粘贴邮件全文即可查看菌护禾面试结果（团队内部使用）。" />
 <link rel="stylesheet" href="assets/styles.css" />
 </head>
 <body>
 
 <header class="topbar">
   <div class="brand">
-    <span class="logo">菌</span>
     <div>
-      <h1>菌护禾 · 报告解密</h1>
-      <p class="sub">AES-256-GCM + RSA-OAEP · 全程本地</p>
+      <h1>面试结果查看</h1>
+      <p class="sub">菌护禾 · 团队内部使用</p>
     </div>
   </div>
   <div class="topbar-right">
-    <a class="btn small ghost" href="./">返回评估</a>
+    <a class="btn small ghost" href="./">返回招募页</a>
   </div>
 </header>
 
 <main>
-  <p class="hint">
-    把候选人发来的加密内容（`*.enc.json` 或邮件里的 JSON）粘贴到下面，再选择你的私钥文件（`interview_report_private.pem`）。
-    解密全部在浏览器内完成，私钥不会上传到任何服务器；建议在可信设备上操作。
-  </p>
+  <p class="hint">把同学发来的邮件全文直接粘贴到下面，再粘贴你的私钥，点「解密」即可。不需要选择文件。</p>
 
   <section class="card">
-    <h2>1. 加密内容</h2>
+    <h2>1. 粘贴邮件全文</h2>
+    <textarea id="pkg-text" rows="10" placeholder="把整封邮件（含 ===== 前后所有文字）粘贴到这里即可，系统会自动找到加密内容。"></textarea>
     <div class="row">
-      <input id="pkg-file" type="file" accept=".json,.enc,application/json" />
       <button id="btn-clear-pkg" class="btn small ghost" type="button">清空</button>
     </div>
-    <textarea id="pkg-text" rows="8" placeholder='粘贴 JSON：{"v":1,"alg":"RSA-OAEP-256+A256GCM+gzip","key":"…","iv":"…","data":"…"}'></textarea>
   </section>
 
   <section class="card">
-    <h2>2. 私钥</h2>
+    <h2>2. 粘贴私钥</h2>
+    <textarea id="key-text" rows="6" placeholder="-----BEGIN PRIVATE KEY-----&#10;…&#10;-----END PRIVATE KEY-----"></textarea>
     <div class="row">
-      <input id="key-file" type="file" accept=".pem,.key,text/plain" />
       <button id="btn-clear-key" class="btn small ghost" type="button">清空</button>
     </div>
-    <textarea id="key-text" rows="6" placeholder="-----BEGIN PRIVATE KEY-----&#10;…&#10;-----END PRIVATE KEY-----"></textarea>
-    <p class="hint">私钥由 `tools/gen_keys.py` 生成；只在本机使用，切勿提交到仓库或发给他人。</p>
+    <p class="hint">私钥只在本机浏览器使用，不上传、不保存。</p>
   </section>
 
   <section class="card">
@@ -57,25 +51,12 @@
   </section>
 
   <section class="card hidden" id="result-card">
-    <h2>解密结果</h2>
+    <h2>面试结果</h2>
     <div id="result"></div>
   </section>
 
-  <p class="disclaimer">
-    说明：本工具只做解密与展示，不验证报告真实性；公钥公开，任何拿到公钥的人都能生成合法密文。
-    如遇「待填充」数据，请以候选人原始回答为准。
-  </p>
+  <p class="disclaimer">团队内部工具，请勿把私钥发给他人。</p>
 </main>
-
-<footer class="footer">
-  <span>菌护禾 · 报告解密</span>
-  <span>·</span>
-  <a href="./">评估站</a>
-  <span>·</span>
-  <a href="README.md">说明</a>
-  <span>·</span>
-  <a href="https://github.com/RazorEdge-wyh/interview-arena" target="_blank" rel="noopener">GitHub</a>
-</footer>
 
 <div id="toast" class="toast hidden" role="status"></div>
 

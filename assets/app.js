@@ -611,24 +611,24 @@ ${JSON.stringify(pkg)}
 
   async function openMail() {
     if (!state.report) { toast('请先完成评分'); return; }
-    const btn = $('#btn-mail');
+    const btn = $('#btn-open-mail');
     btn.disabled = true; btn.textContent = '正在准备…';
     try {
       const pkg = await ensurePackage();
       const url = `mailto:${recipients()}?subject=${encodeURIComponent(mailSubject())}&body=${encodeURIComponent(mailBody(pkg))}`;
-      if (url.length > 6000) toast('内容较长，如邮件被截断请用「下载邮件文件」');
+      if (url.length > 1800) toast('内容较长，邮件应用可能填不全收件人；建议用「发送邮件给团队（推荐）」');
       $('#mail-status').textContent = '已打开邮件客户端，请确认收件人后点发送。';
       window.location.href = url;
     } catch (err) {
       toast('准备邮件失败：' + err.message);
     } finally {
-      btn.disabled = false; btn.textContent = '发送邮件给团队';
+      btn.disabled = false; btn.textContent = '直接用邮件应用';
     }
   }
 
   async function downloadEml() {
     if (!state.report) { toast('请先完成评分'); return; }
-    const btn = $('#btn-eml');
+    const btn = $('#btn-mail');
     btn.disabled = true;
     try {
       const pkg = await ensurePackage();
@@ -643,11 +643,21 @@ ${JSON.stringify(pkg)}
       a.download = `菌护禾-面试结果-${($('#cand-name').value || '同学').trim()}-${Date.now()}.eml`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 3000);
-      $('#mail-status').textContent = '已下载邮件文件：双击打开后点发送即可。';
+      $('#mail-status').textContent = '已生成邮件文件（收件人已填好）：双击下载的文件打开邮件应用，检查收件人后点发送即可。';
+      toast('已生成邮件文件：双击打开 → 点发送');
     } catch (err) {
       toast('下载失败：' + err.message);
     } finally {
       btn.disabled = false;
+    }
+  }
+
+  async function copyRecipients() {
+    try {
+      await navigator.clipboard.writeText(recipients());
+      toast('已复制收件人：' + recipients());
+    } catch (_) {
+      toast('复制失败，请手动输入：' + recipients());
     }
   }
 
@@ -773,9 +783,10 @@ ${JSON.stringify(pkg)}
     });
     $('#btn-finish-chat').addEventListener('click', finishChat);
 
-    $('#btn-mail').addEventListener('click', openMail);
-    $('#btn-eml').addEventListener('click', downloadEml);
+    $('#btn-mail').addEventListener('click', downloadEml);
+    $('#btn-open-mail').addEventListener('click', openMail);
     $('#btn-copy-mail').addEventListener('click', copyCipher);
+    $('#btn-copy-to').addEventListener('click', copyRecipients);
     $('#btn-restart').addEventListener('click', resetAll);
   }
 

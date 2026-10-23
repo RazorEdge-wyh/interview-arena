@@ -140,7 +140,7 @@
       <div class="split">${parts}</div>
       <h3>四维画像</h3>
       <div class="dim-grid">${dims}</div>
-      ${fit ? `<h3>方向匹配</h3><div class="dim-grid">${fit}</div>` : ''}
+      ${fit ? `<h3>方向契合</h3><div class="dim-grid">${fit}</div>` : ''}
       ${chatScores ? `<h3>AI 面试逐轮分数</h3><div class="dim-grid">${chatScores}</div>` : ''}
       ${introText}${intro}${chat}${transcript}${mcq}
       <p class="note">本分析由候选人端生成并加密；解密只说明内容未被篡改，不代表候选人信息已核实。</p>`;
@@ -148,6 +148,23 @@
   }
 
   /* ---------------- 交互 ---------------- */
+  function extractPackage(text) {
+    let t = String(text || '').trim();
+    if (!t) throw new Error('还没有粘贴内容');
+    // 1) 邮件里的标记块
+    const m = t.match(/===\s*BEGIN[^=]*===([\s\S]*?)===\s*END[^=]*===/);
+    if (m) t = m[1].trim();
+    // 2) 直接 JSON
+    try { return JSON.parse(t); } catch (_) {}
+    // 3) 从任意文本中抠出第一个完整 JSON 对象
+    const start = t.indexOf('{');
+    if (start < 0) throw new Error('没有找到可解密的内容，请把整封邮件粘贴进来');
+    for (let end = t.lastIndexOf('}'); end > start; end = t.lastIndexOf('}', end - 1)) {
+      try { return JSON.parse(t.slice(start, end + 1)); } catch (_) {}
+    }
+    throw new Error('内容里没有找到完整的加密数据');
+  }
+
   function readFileAsText(file) {
     return new Promise((resolve, reject) => {
       const r = new FileReader();
@@ -158,16 +175,8 @@
   }
 
   function bind() {
-    $('#pkg-file').addEventListener('change', async (e) => {
-      const f = e.target.files && e.target.files[0];
-      if (f) $('#pkg-text').value = await readFileAsText(f);
-    });
-    $('#key-file').addEventListener('change', async (e) => {
-      const f = e.target.files && e.target.files[0];
-      if (f) $('#key-text').value = await readFileAsText(f);
-    });
-    $('#btn-clear-pkg').addEventListener('click', () => { $('#pkg-text').value = ''; $('#pkg-file').value = ''; });
-    $('#btn-clear-key').addEventListener('click', () => { $('#key-text').value = ''; $('#key-file').value = ''; });
+    $('#btn-clear-pkg').addEventListener('click', () => { $('#pkg-text').value = '';  });
+    $('#btn-clear-key').addEventListener('click', () => { $('#key-text').value = '';  });
 
     $('#btn-decrypt').addEventListener('click', async (e) => {
       const btn = e.currentTarget;
@@ -178,8 +187,7 @@
         const pem = $('#key-text').value.trim();
         if (!rawPkg) throw new Error('请先粘贴加密内容或选择 .enc.json 文件');
         if (!pem) throw new Error('请先选择私钥文件或粘贴 PEM 私钥');
-        let pkg;
-        try { pkg = JSON.parse(rawPkg); } catch (_) { throw new Error('加密内容不是合法 JSON'); }
+        const pkg = extractPackage(rawPkg);
         const data = await decryptPackage(pkg, pem);
         decrypted = data;
         render(data);
