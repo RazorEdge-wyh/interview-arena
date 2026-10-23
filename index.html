@@ -139,15 +139,15 @@
       </div>
       <p id="mail-status" class="hint"></p>
 
-      <details class="adv">
-        <summary>邮件一直发不出去？点这里</summary>
-        <p class="hint">如果邮件应用打不开或一直发送失败，可以用下面任意一种方式把结果发给团队负责人：</p>
+      <p class="hint fallback-link"><a href="#" id="link-fallback">邮件一直发不出去？点这里</a></p>
+      <div id="fallback-box" class="fallback-box hidden">
+        <p class="hint">如果邮件应用打不开或一直发送失败，用下面任意一种方式把<strong>加密结果</strong>发给团队负责人（对方在结果查看页粘贴即可看，不会直接显示分析内容）：</p>
         <div class="row">
-          <button id="btn-copy-result" class="btn" type="button">复制结果，微信/QQ 发给团队</button>
-          <button id="btn-download-result" class="btn ghost" type="button">下载结果文件</button>
+          <button id="btn-copy-result" class="btn" type="button">复制加密结果（微信/QQ 发给团队）</button>
+          <button id="btn-download-result" class="btn ghost" type="button">下载加密结果文件</button>
         </div>
         <p id="fallback-status" class="hint"></p>
-      </details>
+      </div>
       <textarea id="mail-preview" class="hidden"></textarea>
       <textarea id="enc-output" class="hidden"></textarea>
       <p id="enc-status" class="hidden"></p>

@@ -24,6 +24,9 @@
     chatScored: null,
     report: null,
     encPackage: null,
+    mailtoUrl: '',
+    summaryPkg: null,
+    fullPkg: null,
   };
 
   const $ = (s, r = document) => r.querySelector(s);
@@ -550,6 +553,7 @@ ${text}`;
       <div class="dim-grid">${fit}</div>
       ${chatScores ? `<h3>AI 面试逐轮得分</h3><div class="dim-grid">${chatScores}</div>` : ''}
       <p class="note">这里只展示分数；完整分析会随邮件发送给团队。</p>`;
+    prepareReportAssets();
   }
 
   /* ---------------- 邮件（密码 00000，页面不展示技术细节） ---------------- */
@@ -648,15 +652,12 @@ ${JSON.stringify(pkg)}
 `;
   }
 
-  async function openMail() {
-    if (!state.report) { toast('请先完成评分', 4200, 'err'); return; }
-    const btn = $('#btn-mail');
-    btn.disabled = true; btn.textContent = '正在打开邮件…';
+  async function prepareReportAssets() {
+    if (!state.report) return;
     try {
       let pkg = await encryptPacket(summaryPayload(state.report));
       let url = `mailto:${recipients()}?subject=${encodeURIComponent(mailSubject())}&body=${encodeURIComponent(mailBody(pkg))}`;
       if (url.length > 1800) {
-        // 再压缩：只保留分数，保证收件人一定能填上
         const brief = {
           mode: 'brief', to: state.data.mailTo, createdAt: new Date().toISOString(),
           candidate: { name: state.report.name, direction: state.report.direction },
@@ -666,26 +667,42 @@ ${JSON.stringify(pkg)}
         pkg = await encryptPacket(brief);
         url = `mailto:${recipients()}?subject=${encodeURIComponent(mailSubject())}&body=${encodeURIComponent(mailBody(pkg))}`;
       }
-      $('#mail-preview').value = `收件人：${recipients()}\n主题：${mailSubject()}\n\n${mailBody(pkg)}`;
-      const debugMail = new URLSearchParams(location.search).get('debug') === '1';
-      $('#mail-status').textContent = '已打开邮件应用：收件人、主题、内容都填好了，点发送即可。若没跳出，用「下载完整邮件文件」。'
-        + (debugMail ? `（mailto 长度 ${url.length} 字符）` : '');
-      window.location.href = url;
+      state.summaryPkg = pkg;
+      state.mailtoUrl = url;
+      state.fullPkg = await encryptPacket(fullPayload(state.report));
+      const st = $('#mail-status');
+      if (st && !st.textContent) st.textContent = '邮件已准备好：点「发送邮件给团队」会打开邮箱，收件人已填好。';
     } catch (err) {
-      toast('打开邮件失败：' + err.message, 5000, 'err');
-    } finally {
-      btn.disabled = false; btn.textContent = '发送邮件给团队';
+      console.warn('prepare mail failed', err);
     }
   }
 
-  async function downloadEml() {
+  function openMail() {
     if (!state.report) { toast('请先完成评分', 4200, 'err'); return; }
-    const btn = $('#btn-eml');
-    btn.disabled = true; btn.textContent = '生成中…';
+    if (!state.mailtoUrl) {
+      prepareReportAssets();
+      toast('正在准备邮件，请稍等 1 秒再点一次', 4200, 'err');
+      return;
+    }
     try {
-      const pkg = await encryptPacket(fullPayload(state.report));
+      const a = document.createElement('a');
+      a.href = state.mailtoUrl;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      $('#mail-status').textContent = '已调用邮件应用：收件人 3 个、主题和内容都填好了，点发送即可。若没跳出，用下面「复制加密结果」发给团队。';
+    } catch (err) {
+      toast('打开邮件失败：' + err.message + '，请用下面「复制加密结果」', 5000, 'err');
+    }
+  }
+
+  function downloadEml() {
+    if (!state.report) { toast('请先完成评分', 4200, 'err'); return; }
+    if (!state.fullPkg) { prepareReportAssets(); toast('正在准备，请稍等 1 秒再点', 4200, 'err'); return; }
+    try {
       const subjectEnc = '=?UTF-8?B?' + b64(new TextEncoder().encode(mailSubject())) + '?=';
-      const bodyB64 = b64(new TextEncoder().encode(mailBody(pkg))).replace(/(.{76})/g, '$1\r\n');
+      const bodyB64 = b64(new TextEncoder().encode(mailBody(state.fullPkg))).replace(/(.{76})/g, '$1\r\n');
       const eml = [
         `To: ${recipients()}`, `Subject: ${subjectEnc}`, 'MIME-Version: 1.0',
         'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', bodyB64,
@@ -699,8 +716,6 @@ ${JSON.stringify(pkg)}
       toast('已生成完整邮件文件', 4200, 'ok');
     } catch (err) {
       toast('生成失败：' + err.message, 5000, 'err');
-    } finally {
-      btn.disabled = false; btn.textContent = '下载完整邮件文件';
     }
   }
 
@@ -764,34 +779,29 @@ ${JSON.stringify(pkg)}
 
   async function copyPlainResult() {
     if (!state.report) { toast('请先完成评分', 4200, 'err'); return; }
-    const text = plainResultText(state.report);
     try {
-      await navigator.clipboard.writeText(text);
-      $('#fallback-status').textContent = '已复制结果：直接粘贴到微信/QQ 发给团队负责人即可。';
-      toast('已复制结果，去微信/QQ 粘贴发送吧', 5000, 'ok');
+      const pkg = state.summaryPkg || await encryptPacket(summaryPayload(state.report));
+      const code = `===BEGIN ANALYSIS===\n${JSON.stringify(pkg)}\n===END ANALYSIS===`;
+      await navigator.clipboard.writeText(code);
+      $('#fallback-status').textContent = '已复制加密结果：粘贴到微信/QQ 发给团队负责人，对方在结果查看页粘贴即可查看。';
+      toast('已复制加密结果（对方需在结果页粘贴查看）', 5000, 'ok');
     } catch (_) {
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      document.body.appendChild(ta);
-      ta.select();
-      try { document.execCommand('copy'); toast('已复制结果', 5000, 'ok'); } catch (e) { toast('复制失败，请用下载结果文件', 5000, 'err'); }
-      ta.remove();
+      toast('复制失败，请用「下载加密结果文件」', 5000, 'err');
     }
   }
 
   function downloadPlainResult() {
     if (!state.report) { toast('请先完成评分', 4200, 'err'); return; }
-    const text = plainResultText(state.report);
-    const html = `<!doctype html><meta charset="utf-8"><title>菌护禾面试结果</title>
-<style>body{font-family:-apple-system,"Microsoft YaHei",sans-serif;max-width:720px;margin:40px auto;padding:0 20px;line-height:1.8;color:#111}pre{white-space:pre-wrap;font-family:inherit;font-size:14px}</style>
-<h1 style="font-size:18px">金种子杯 · 菌护禾 · 面试结果</h1><pre>${text.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</pre>`;
+    const pkg = state.summaryPkg;
+    if (!pkg) { prepareReportAssets(); toast('正在准备，请稍等 1 秒再点', 4200, 'err'); return; }
+    const code = `===BEGIN ANALYSIS===\n${JSON.stringify(pkg)}\n===END ANALYSIS===\n`;
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
-    a.download = `菌护禾-面试结果-${($('#cand-name').value || '同学').trim()}-${Date.now()}.html`;
+    a.href = URL.createObjectURL(new Blob([code], { type: 'text/plain;charset=utf-8' }));
+    a.download = `菌护禾-加密结果-${($('#cand-name').value || '同学').trim()}-${Date.now()}.txt`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 3000);
-    $('#fallback-status').textContent = '已下载结果文件：直接把这个文件用微信/QQ 发给团队负责人即可。';
-    toast('已下载结果文件', 4200, 'ok');
+    $('#fallback-status').textContent = '已下载加密结果文件：用微信/QQ 发给团队负责人，对方在结果页粘贴即可查看。';
+    toast('已下载加密结果文件', 4200, 'ok');
   }
 
   async function copyRecipients() {
@@ -929,8 +939,13 @@ ${JSON.stringify(pkg)}
     $('#btn-finish-chat').addEventListener('click', finishChat);
 
     $('#btn-mail').addEventListener('click', openMail);
+    if ($('#btn-eml')) $('#btn-eml').addEventListener('click', downloadEml);
         $('#btn-copy-mail').addEventListener('click', copyMailContent);
     $('#btn-copy-to').addEventListener('click', copyRecipients);
+    if ($('#link-fallback')) $('#link-fallback').addEventListener('click', (e) => {
+      e.preventDefault();
+      $('#fallback-box').classList.toggle('hidden');
+    });
     if ($('#btn-copy-result')) $('#btn-copy-result').addEventListener('click', copyPlainResult);
     if ($('#btn-download-result')) $('#btn-download-result').addEventListener('click', downloadPlainResult);
     if ($('#btn-restart')) $('#btn-restart').addEventListener('click', resetAll);
