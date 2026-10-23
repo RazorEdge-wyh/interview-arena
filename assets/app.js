@@ -655,23 +655,13 @@ ${JSON.stringify(pkg)}
   async function prepareReportAssets() {
     if (!state.report) return;
     try {
-      let pkg = await encryptPacket(summaryPayload(state.report));
-      let url = `mailto:${recipients()}?subject=${encodeURIComponent(mailSubject())}&body=${encodeURIComponent(mailBody(pkg))}`;
-      if (url.length > 1800) {
-        const brief = {
-          mode: 'brief', to: state.data.mailTo, createdAt: new Date().toISOString(),
-          candidate: { name: state.report.name, direction: state.report.direction },
-          total: Math.round(state.report.total * 10) / 10, verdict: state.report.verdict,
-          parts: state.report.parts.map((p) => ({ name: p.name, score: Math.round(p.score * 10) / 10 })),
-        };
-        pkg = await encryptPacket(brief);
-        url = `mailto:${recipients()}?subject=${encodeURIComponent(mailSubject())}&body=${encodeURIComponent(mailBody(pkg))}`;
-      }
+      const pkg = await encryptPacket(fullPayload(state.report));
+      state.fullPkg = pkg;
       state.summaryPkg = pkg;
-      state.mailtoUrl = url;
-      state.fullPkg = await encryptPacket(fullPayload(state.report));
+      const body = mailBody(pkg);
+      state.mailtoUrl = `mailto:${recipients()}?subject=${encodeURIComponent(mailSubject())}&body=${encodeURIComponent(body)}`;
       const st = $('#mail-status');
-      if (st && !st.textContent) st.textContent = '邮件已准备好：点「发送邮件给团队」会打开邮箱，收件人已填好。';
+      if (st && !st.textContent) st.textContent = '准备完成：点「发送邮件给团队」会生成完整加密邮件（收件人已填好）。';
     } catch (err) {
       console.warn('prepare mail failed', err);
     }
@@ -679,9 +669,15 @@ ${JSON.stringify(pkg)}
 
   function openMail() {
     if (!state.report) { toast('请先完成评分', 4200, 'err'); return; }
-    if (!state.mailtoUrl) {
+    if (!state.mailtoUrl || !state.fullPkg) {
       prepareReportAssets();
-      toast('正在准备邮件，请稍等 1 秒再点一次', 4200, 'err');
+      toast('正在准备完整邮件，请稍等 1 秒再点', 4200, 'err');
+      return;
+    }
+    // 完整分析较长，mailto 放不下时自动改为下载完整邮件文件（内容不丢）
+    if (state.mailtoUrl.length > 1800) {
+      downloadEml();
+      $('#mail-status').textContent = '完整分析较长，已改为生成完整邮件文件：双击打开 → 点发送即可（收件人已填好）。';
       return;
     }
     try {
@@ -691,9 +687,9 @@ ${JSON.stringify(pkg)}
       document.body.appendChild(a);
       a.click();
       a.remove();
-      $('#mail-status').textContent = '已调用邮件应用：收件人 3 个、主题和内容都填好了，点发送即可。若没跳出，用下面「复制加密结果」发给团队。';
+      $('#mail-status').textContent = '已调用邮件应用：收件人 3 个、主题和内容都填好了，点发送即可。';
     } catch (err) {
-      toast('打开邮件失败：' + err.message + '，请用下面「复制加密结果」', 5000, 'err');
+      toast('打开邮件失败：' + err.message, 5000, 'err');
     }
   }
 
@@ -780,11 +776,11 @@ ${JSON.stringify(pkg)}
   async function copyPlainResult() {
     if (!state.report) { toast('请先完成评分', 4200, 'err'); return; }
     try {
-      const pkg = state.summaryPkg || await encryptPacket(summaryPayload(state.report));
+      const pkg = state.fullPkg || await encryptPacket(fullPayload(state.report));
       const code = `===BEGIN ANALYSIS===\n${JSON.stringify(pkg)}\n===END ANALYSIS===`;
       await navigator.clipboard.writeText(code);
-      $('#fallback-status').textContent = '已复制加密结果：粘贴到微信/QQ 发给团队负责人，对方在结果查看页粘贴即可查看。';
-      toast('已复制加密结果（对方需在结果页粘贴查看）', 5000, 'ok');
+      $('#fallback-status').textContent = '已复制完整加密结果（含逐题点评、对话原文、原始作答）：粘贴到微信/QQ 发给团队即可。';
+      toast('已复制完整加密结果', 5000, 'ok');
     } catch (_) {
       toast('复制失败，请用「下载加密结果文件」', 5000, 'err');
     }
@@ -792,16 +788,16 @@ ${JSON.stringify(pkg)}
 
   function downloadPlainResult() {
     if (!state.report) { toast('请先完成评分', 4200, 'err'); return; }
-    const pkg = state.summaryPkg;
+    const pkg = state.fullPkg;
     if (!pkg) { prepareReportAssets(); toast('正在准备，请稍等 1 秒再点', 4200, 'err'); return; }
     const code = `===BEGIN ANALYSIS===\n${JSON.stringify(pkg)}\n===END ANALYSIS===\n`;
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([code], { type: 'text/plain;charset=utf-8' }));
-    a.download = `菌护禾-加密结果-${($('#cand-name').value || '同学').trim()}-${Date.now()}.txt`;
+    a.download = `菌护禾-完整加密结果-${($('#cand-name').value || '同学').trim()}-${Date.now()}.txt`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 3000);
-    $('#fallback-status').textContent = '已下载加密结果文件：用微信/QQ 发给团队负责人，对方在结果页粘贴即可查看。';
-    toast('已下载加密结果文件', 4200, 'ok');
+    $('#fallback-status').textContent = '已下载完整加密结果文件：用微信/QQ 发给团队即可。';
+    toast('已下载完整加密结果文件', 4200, 'ok');
   }
 
   async function copyRecipients() {
