@@ -792,16 +792,47 @@ ${JSON.stringify(pkg)}
     return lines.join('\n');
   }
 
+  function copyTextFallback(text) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.top = '-9999px';
+      document.body.appendChild(ta);
+      ta.select();
+      const ok = document.execCommand('copy');
+      ta.remove();
+      return ok;
+    } catch (_) {
+      return false;
+    }
+  }
+
   async function copyPlainResult() {
     if (!state.report) { toast('请先完成评分', 4200, 'err'); return; }
+    const btn = $('#btn-copy-result');
     try {
       const pkg = state.fullPkg || await encryptPacket(fullPayload(state.report));
       const code = `===BEGIN ANALYSIS===\n${JSON.stringify(pkg)}\n===END ANALYSIS===`;
-      await navigator.clipboard.writeText(code);
-      $('#fallback-status').textContent = '已复制完整加密结果（含逐题点评、对话原文、原始作答）：粘贴到微信/QQ 发给团队即可。';
-      toast('已复制完整加密结果', 5000, 'ok');
-    } catch (_) {
-      toast('复制失败，请用「下载加密结果文件」', 5000, 'err');
+      let ok = false;
+      try {
+        await navigator.clipboard.writeText(code);
+        ok = true;
+      } catch (_) {
+        ok = copyTextFallback(code);
+      }
+      if (ok) {
+        $('#fallback-status').textContent = '已复制到剪贴板。请加微信 w13908105242，把这段内容粘贴发给她即可。';
+        toast('已复制到剪贴板，加微信 w13908105242 发送', 5000, 'ok');
+      } else {
+        $('#fallback-status').textContent = '浏览器不允许自动复制，请用「下载加密结果文件」后发给微信 w13908105242。';
+        toast('复制失败，请用下载文件的方式', 5000, 'err');
+      }
+    } catch (err) {
+      $('#fallback-status').textContent = '准备失败：' + err.message;
+      toast('准备失败：' + err.message, 5000, 'err');
+    } finally {
+      if (btn) btn.disabled = false;
     }
   }
 
@@ -815,8 +846,8 @@ ${JSON.stringify(pkg)}
     a.download = `菌护禾-完整加密结果-${($('#cand-name').value || '同学').trim()}-${Date.now()}.txt`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 3000);
-    $('#fallback-status').textContent = '已下载完整加密结果文件：用微信/QQ 发给团队即可。';
-    toast('已下载完整加密结果文件', 4200, 'ok');
+    $('#fallback-status').textContent = '已下载完整加密结果文件：加微信 w13908105242，把文件发给她即可。';
+    toast('已下载完整加密结果文件，加微信 w13908105242 发送', 4200, 'ok');
   }
 
   async function copyRecipients() {
