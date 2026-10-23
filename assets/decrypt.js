@@ -172,6 +172,7 @@
       <div class="big-score"><b>${fmt(s.total, 1)}</b><span>/ 100 综合评分</span>
         <span class="verdict">${esc(s.verdict || '')}</span></div>
       <p class="hint">${esc(c.name || '同学')} · ${esc(c.direction || '')} · ${esc(c.exp || '')} · ${esc(data.createdAt || '')}</p>
+      ${s.gradeBonus ? `<p class="hint">年级加分：+${fmt(s.gradeBonus)}（原始分 ${fmt(s.baseTotal, 1)}，加分后 ${fmt(s.total, 1)}）</p>` : ''}
       <div class="split">${parts}</div>
       <h3>四维画像</h3><div class="dim-grid">${dims}</div>
       ${fit ? `<h3>方向契合</h3><div class="dim-grid">${fit}</div>` : ''}

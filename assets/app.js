@@ -476,6 +476,18 @@ ${text}`;
   }
 
   /* ---------------- 总分 ---------------- */
+  function gradeBonus(exp) {
+    const map = {
+      '大一 / 1 年': 0,
+      '大二 / 1 年': 1,
+      '大三 / 2 年': 2,
+      '大四 / 3 年': 3,
+      '研究生 / 3 年以上': 4,
+    };
+    const v = map[String(exp || '').trim()];
+    return v === undefined ? 0 : v;
+  }
+
   function verdictOf(total) {
     if (total >= 80) return '强推荐进入下一轮';
     if (total >= 65) return '推荐进入下一轮';
@@ -497,7 +509,9 @@ ${text}`;
     if (state.introScore) parts.push({ key: 'intro', name: '自我介绍', score: state.introScore.total, weight: state.data.weights.intro });
     if (state.chatScored) parts.push({ key: 'chat', name: 'AI 面试', score: state.chatScored.overall, weight: state.data.weights.chat });
     const wsum = parts.reduce((a, p) => a + p.weight, 0) || 1;
-    const total = parts.reduce((a, p) => a + p.score * (p.weight / wsum), 0);
+    const baseTotal = parts.reduce((a, p) => a + p.score * (p.weight / wsum), 0);
+    const bonus = gradeBonus($('#cand-exp').value);
+    const total = baseTotal + bonus;
     const dims = dimKeys().map((k) => ({
       key: k, label: state.data.dimensions[k].label, type: state.data.dimensions[k].type, value: mcq.percent[k] ?? 0,
     })).sort((a, b) => a.value - b.value);
@@ -507,6 +521,8 @@ ${text}`;
       directionId: state.direction,
       exp: $('#cand-exp').value,
       total: clamp(total, 0, 100),
+      baseTotal: clamp(baseTotal, 0, 100),
+      gradeBonus: bonus,
       verdict: verdictOf(total),
       verdictText: publicVerdict(total),
       parts, dims,
@@ -616,6 +632,9 @@ ${text}`;
       candidate: { name: report.name, direction: report.direction, directionId: report.directionId, exp: report.exp },
       scores: {
         total: Math.round(report.total * 10) / 10, verdict: report.verdict,
+        baseTotal: Math.round((report.baseTotal || report.total) * 10) / 10,
+        gradeBonus: report.gradeBonus || 0,
+        grade: report.exp,
         parts: report.parts.map((p) => ({ name: p.name, score: Math.round(p.score * 10) / 10, weight: p.weight })),
         dims: report.dims.map((d) => ({ label: d.label, type: d.type, value: Math.round(d.value * 10) / 10 })),
         fit: report.fit.map((f) => ({ name: f.name, score: Math.round(f.score * 10) / 10 })),
