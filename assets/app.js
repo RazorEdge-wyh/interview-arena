@@ -439,10 +439,20 @@ ${text}`;
         toast('AI 暂不可用，使用本地规则打分');
       } else {
         const prompt = chatPromptReplace(state.data.chat.scoringPrompt).replace('{transcript}', transcriptText());
-        out = await callAI([
-          { role: 'system', content: '你是严格但公正的面试官，只输出合法 JSON。' },
-          { role: 'user', content: prompt },
-        ], { json: true, temperature: 0.2, maxTokens: 2000 });
+        let lastErr = null;
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            out = await callAI([
+              { role: 'system', content: '你是严格但公正的面试官，只输出合法 JSON。' },
+              { role: 'user', content: prompt },
+            ], { json: true, temperature: 0.2, maxTokens: 2800 });
+            break;
+          } catch (err) {
+            lastErr = err;
+            if (attempt < 3) await new Promise((res) => setTimeout(res, 800));
+          }
+        }
+        if (!out) throw lastErr || new Error('AI 评分失败');
         out.mode = 'ai';
       }
       state.chatScored = sanitizeChatScore(out);
