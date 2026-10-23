@@ -1,4 +1,4 @@
-﻿/* 金种子杯 · 菌护禾 · 团队招募评估（v6）
+/* 金种子杯 · 菌护禾 · 团队招募评估（v6）
  * 项目介绍（可跳过）→ 5 题（2 通用 + 1 项目 + 2 方向专业）→ 自我介绍（最多 3 次）→ AI 真实多轮面试 → 评分
  * 页面只展示分数；完整分析随邮件发给团队
  */
@@ -789,7 +789,7 @@ ${JSON.stringify(pkg)}
         + '[在此粘贴完整加密结果]\n';
       state.mailtoUrl = `mailto:${recipients()}?subject=${encodeURIComponent(mailSubject())}&body=${encodeURIComponent(shortBody)}`;
       const st = $('#mail-status');
-      if (st && !st.textContent) st.textContent = '准备完成：点「发送邮件给团队」会打开邮箱并自动复制完整内容。';
+      if (st && !st.textContent) st.textContent = '准备完成：点「① 一键发送给团队」可直接发送；网络不通时用「② 手动发送」。';
     } catch (err) {
       console.warn('prepare mail failed', err);
     }
@@ -826,12 +826,12 @@ ${JSON.stringify(pkg)}
           : ('后端发送失败：' + (err.message || err) + '，已改为手动方式');
         toast(msg, 6000, 'err');
         $('#mail-status').textContent = '后端没有发送成功，已切换为手动方式，请用下面的按钮。';
-        const fb = $('#fallback-box');
+        const fb = $('#manual-box');
         if (fb) fb.classList.remove('hidden');
         const fbStatus = $('#fallback-status');
         if (fbStatus) fbStatus.textContent = '请点「复制加密结果」，粘到自己的邮箱发给上面三个邮箱；不行再加微信 w13908105242（备注来意）。';
       } finally {
-        if (!sent) { btn.disabled = false; btn.textContent = '发送邮件给团队'; }
+        if (!sent) { btn.disabled = false; btn.textContent = '① 一键发送给团队'; }
       }
       if (sent) return;
     }
@@ -845,6 +845,8 @@ ${JSON.stringify(pkg)}
     $('#mail-status').textContent = (copied ? '完整加密结果已复制到剪贴板。' : '')
       + '正在打开邮件应用（若没弹出，说明本机没有设置默认邮件程序，请用下方「复制加密结果」或「下载加密结果文件」）。'
       + (debugMail ? `（mailto 长度 ${state.mailtoUrl.length}）` : '');
+    const mb = $('#manual-box');
+    if (mb && mb.classList.contains('hidden')) mb.classList.remove('hidden');
     try {
       window.location.href = state.mailtoUrl;
     } catch (err) {
@@ -903,7 +905,7 @@ ${JSON.stringify(pkg)}
       await navigator.clipboard.writeText(`收件人：${recipients()}\n主题：${mailSubject()}\n\n${mailBody(pkg)}`);
       toast('已复制：收件人 + 主题 + 邮件内容', 4200, 'ok');
     } catch (_) {
-      toast('复制失败，请用「发送邮件给团队」', 4200, 'err');
+      toast('复制失败，请用「① 一键发送给团队」或「② 手动发送」', 4200, 'err');
     }
   }
 
@@ -1154,9 +1156,11 @@ ${JSON.stringify(pkg)}
     if ($('#btn-eml')) $('#btn-eml').addEventListener('click', downloadEml);
         $('#btn-copy-mail').addEventListener('click', copyMailContent);
     $('#btn-copy-to').addEventListener('click', copyRecipients);
-    if ($('#link-fallback')) $('#link-fallback').addEventListener('click', (e) => {
-      e.preventDefault();
-      $('#fallback-box').classList.toggle('hidden');
+    if ($('#btn-manual')) $('#btn-manual').addEventListener('click', () => {
+      const box = $('#manual-box');
+      if (!box) return;
+      box.classList.toggle('hidden');
+      if (!box.classList.contains('hidden')) box.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
     if ($('#btn-copy-result')) $('#btn-copy-result').addEventListener('click', copyPlainResult);
     if ($('#btn-download-result')) $('#btn-download-result').addEventListener('click', downloadPlainResult);

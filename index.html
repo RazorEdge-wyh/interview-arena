@@ -1,11 +1,11 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>金种子杯 · 菌护禾 · 团队招募</title>
 <meta name="description" content="湖南科技大学学生团队 · 金种子杯项目菌护禾的队友招募评估：项目介绍、5 道情境题、自我介绍、AI 面试。" />
-<link rel="stylesheet" href="assets/styles.css?v=20261023f" />
+<link rel="stylesheet" href="assets/styles.css?v=20261023g" />
 </head>
 <body>
 
@@ -132,33 +132,32 @@
 
     <div class="card" id="send-card">
       <h2>面试完成</h2>
-      <p class="hint" style="border:1px solid #111;padding:10px 12px;background:#fffbe6">
-        <b>说明：</b>邮件正文里会有一段很长的、看起来像乱码或“密钥”的内容，这是<b>正常的</b>——它就是加密后的结果，直接发送即可，<b>不用删除或修改</b>。
-      </p>
       <p class="hint">
-        请把本次面试结果发送给团队：点下面按钮会直接打开你的邮箱，收件人、主题、内容都已填好，确认后点发送即可。<br>
+        请把本次面试结果发送给团队。<br>
         收件人：<b>2160634966@qq.com</b>、<b>2715240991@qq.com</b>、<b>355594812@qq.com</b>
         <button id="btn-copy-to" class="btn small ghost" type="button">复制收件人</button><br>
         <span class="warn-text">未发送将无法进入后续筛选，可能会失去这次机会。</span>
       </p>
+
       <div class="row">
-        <button id="btn-mail" class="btn primary" type="button">发送邮件给团队</button>
-        <button id="btn-eml" class="btn ghost small" type="button">下载完整邮件文件</button>
-        <button id="btn-copy-mail" class="btn ghost small" type="button">复制邮件内容</button>
+        <button id="btn-mail" class="btn primary" type="button">① 一键发送给团队</button>
+        <button id="btn-manual" class="btn ghost" type="button">② 手动发送</button>
       </div>
       <p id="mail-status" class="hint"></p>
 
-      <p class="hint fallback-link"><a href="#" id="link-fallback">邮件一直发不出去？点这里</a></p>
-      <div id="fallback-box" class="fallback-box hidden">
+      <div id="manual-box" class="fallback-box hidden">
         <p class="hint">
-          如果邮件应用打不开或一直发送失败，请按顺序操作：<br>
-          1）先手动把加密结果发给上面三个邮箱 <b>2160634966@qq.com</b>、<b>2715240991@qq.com</b>、<b>355594812@qq.com</b>（复制加密结果 → 粘到自己的邮箱里发送，或下载文件作为附件发送）；<br>
-          2）实在发不出去，再加微信 <b>w13908105242</b>（<b>备注来意</b>），把加密结果发给她。<br>
-          团队在结果查看页粘贴即可看，不会直接显示分析内容。
+          手动方式：把<strong>加密结果</strong>发给上面三个邮箱（复制后粘到自己的邮箱发送，或下载文件作为附件发送）。<br>
+          实在发不出去，再加微信 <b>w13908105242</b>（<b>备注来意</b>）。团队在结果查看页粘贴即可看，不会直接显示分析内容。
+        </p>
+        <p class="hint">
+          发送时内容里会有一段很长的、看起来像乱码的内容，这是<b>正常的</b>，它就是加密后的结果，<b>不用删除或修改</b>。
         </p>
         <div class="row">
           <button id="btn-copy-result" class="btn" type="button">复制加密结果</button>
           <button id="btn-download-result" class="btn ghost" type="button">下载加密结果文件</button>
+          <button id="btn-eml" class="btn ghost small" type="button">下载完整邮件文件</button>
+          <button id="btn-copy-mail" class="btn ghost small" type="button">复制邮件内容</button>
         </div>
         <p id="fallback-status" class="hint"></p>
       </div>
@@ -180,7 +179,7 @@
 
 <div id="toast" class="toast hidden" role="status"></div>
 
-<script src="assets/config.js?v=20261023f"></script>
-<script src="assets/app.js?v=20261023f"></script>
+<script src="assets/config.js?v=20261023g"></script>
+<script src="assets/app.js?v=20261023g"></script>
 </body>
 </html>
