@@ -128,7 +128,7 @@
       <h2>面试完成</h2>
       <p class="hint">
         请把本次面试结果发送给团队：点下面按钮会直接打开你的邮箱，收件人、主题、内容都已填好，确认后点发送即可。<br>
-        收件人：<b>2160634966@qq.com</b>、<b>2715240991@qq.com</b>
+        收件人：<b>2160634966@qq.com</b>、<b>2715240991@qq.com</b>、<b>355594812@qq.com</b>
         <button id="btn-copy-to" class="btn small ghost" type="button">复制收件人</button><br>
         <span class="warn-text">未发送将无法进入后续筛选，可能会失去这次机会。</span>
       </p>
@@ -138,6 +138,16 @@
         <button id="btn-copy-mail" class="btn ghost small" type="button">复制邮件内容</button>
       </div>
       <p id="mail-status" class="hint"></p>
+
+      <details class="adv">
+        <summary>邮件一直发不出去？点这里</summary>
+        <p class="hint">如果邮件应用打不开或一直发送失败，可以用下面任意一种方式把结果发给团队负责人：</p>
+        <div class="row">
+          <button id="btn-copy-result" class="btn" type="button">复制结果，微信/QQ 发给团队</button>
+          <button id="btn-download-result" class="btn ghost" type="button">下载结果文件</button>
+        </div>
+        <p id="fallback-status" class="hint"></p>
+      </details>
       <textarea id="mail-preview" class="hidden"></textarea>
       <textarea id="enc-output" class="hidden"></textarea>
       <p id="enc-status" class="hidden"></p>

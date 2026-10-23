@@ -715,6 +715,85 @@ ${JSON.stringify(pkg)}
     }
   }
 
+  function plainResultText(report) {
+    const r = report;
+    const lines = [];
+    lines.push('金种子杯 · 菌护禾 团队招募 · 面试结果');
+    lines.push('');
+    lines.push(`同学：${r.name}`);
+    lines.push(`方向：${r.direction}`);
+    lines.push(`${r.exp}`);
+    lines.push(`综合分：${fmt(r.total, 1)} / 100（${r.verdictText || r.verdict}）`);
+    lines.push('');
+    lines.push('模块分：');
+    r.parts.forEach((p) => { lines.push(`- ${p.name}：${fmt(p.score, 1)}`); });
+    lines.push('');
+    lines.push('四维画像：');
+    r.dims.forEach((d) => { lines.push(`- ${d.label}：${fmt(d.value, 1)}`); });
+    if (r.fit && r.fit.length) {
+      lines.push('');
+      lines.push('方向契合：');
+      r.fit.slice(0, 3).forEach((f, i) => { lines.push(`- ${i === 0 ? '最匹配' : '第 ' + (i + 1)}：${f.name}（${fmt(f.score, 1)}）`); });
+    }
+    if (r.chat) {
+      lines.push('');
+      lines.push('AI 面试逐轮：');
+      r.chat.scores.forEach((x, i) => { lines.push(`- 第 ${x.round || i + 1} 轮：${fmt((Number(x.score) || 0) * 4, 0)}`); });
+    }
+    const ai = (r.intro && (r.intro.highlights || r.intro.risks || r.intro.suggestions)) ? r.intro : null;
+    if (ai) {
+      lines.push('');
+      lines.push('自我介绍分析：');
+      (ai.highlights || []).forEach((x) => lines.push(`+ ${x}`));
+      (ai.risks || []).forEach((x) => lines.push(`- ${x}`));
+      (ai.suggestions || []).forEach((x) => lines.push(`> ${x}`));
+    }
+    if (r.chat) {
+      lines.push('');
+      lines.push('AI 面试分析：');
+      (r.chat.strengths || []).forEach((x) => lines.push(`+ ${x}`));
+      (r.chat.risks || []).forEach((x) => lines.push(`- ${x}`));
+      (r.chat.suggestions || []).forEach((x) => lines.push(`> ${x}`));
+      if (r.chat.verdict) lines.push(`结论：${r.chat.verdict}`);
+    }
+    lines.push('');
+    lines.push(`生成时间：${new Date(r.createdAt).toLocaleString('zh-CN')}`);
+    lines.push('（把这段文字发给菌护禾团队负责人即可）');
+    return lines.join('\n');
+  }
+
+  async function copyPlainResult() {
+    if (!state.report) { toast('请先完成评分', 4200, 'err'); return; }
+    const text = plainResultText(state.report);
+    try {
+      await navigator.clipboard.writeText(text);
+      $('#fallback-status').textContent = '已复制结果：直接粘贴到微信/QQ 发给团队负责人即可。';
+      toast('已复制结果，去微信/QQ 粘贴发送吧', 5000, 'ok');
+    } catch (_) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      try { document.execCommand('copy'); toast('已复制结果', 5000, 'ok'); } catch (e) { toast('复制失败，请用下载结果文件', 5000, 'err'); }
+      ta.remove();
+    }
+  }
+
+  function downloadPlainResult() {
+    if (!state.report) { toast('请先完成评分', 4200, 'err'); return; }
+    const text = plainResultText(state.report);
+    const html = `<!doctype html><meta charset="utf-8"><title>菌护禾面试结果</title>
+<style>body{font-family:-apple-system,"Microsoft YaHei",sans-serif;max-width:720px;margin:40px auto;padding:0 20px;line-height:1.8;color:#111}pre{white-space:pre-wrap;font-family:inherit;font-size:14px}</style>
+<h1 style="font-size:18px">金种子杯 · 菌护禾 · 面试结果</h1><pre>${text.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</pre>`;
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+    a.download = `菌护禾-面试结果-${($('#cand-name').value || '同学').trim()}-${Date.now()}.html`;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+    $('#fallback-status').textContent = '已下载结果文件：直接把这个文件用微信/QQ 发给团队负责人即可。';
+    toast('已下载结果文件', 4200, 'ok');
+  }
+
   async function copyRecipients() {
     try {
       await navigator.clipboard.writeText(recipients());
@@ -852,6 +931,8 @@ ${JSON.stringify(pkg)}
     $('#btn-mail').addEventListener('click', openMail);
         $('#btn-copy-mail').addEventListener('click', copyMailContent);
     $('#btn-copy-to').addEventListener('click', copyRecipients);
+    if ($('#btn-copy-result')) $('#btn-copy-result').addEventListener('click', copyPlainResult);
+    if ($('#btn-download-result')) $('#btn-download-result').addEventListener('click', downloadPlainResult);
     if ($('#btn-restart')) $('#btn-restart').addEventListener('click', resetAll);
   }
 

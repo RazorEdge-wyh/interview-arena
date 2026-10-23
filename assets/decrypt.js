@@ -193,7 +193,7 @@
         const pkg = extractPackage(raw);
         let data;
         if (pkg.alg && String(pkg.alg).indexOf('A256GCM') === 0) {
-          const pw = ($('#password').value || '00000').trim();
+          const pw = '00000';
           data = await decryptV2(pkg, pw);
         } else if (pkg.alg && String(pkg.alg).indexOf('RSA-OAEP') === 0) {
           const pem = $('#key-text').value.trim();
