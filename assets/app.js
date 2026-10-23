@@ -961,10 +961,10 @@ ${JSON.stringify(pkg)}
         ok = copyTextFallback(code);
       }
       if (ok) {
-        $('#fallback-status').textContent = '已复制到剪贴板。请加微信 w13908105242，把这段内容粘贴发给她即可。';
-        toast('已复制到剪贴板，加微信 w13908105242 发送', 5000, 'ok');
+        $('#fallback-status').textContent = '已复制到剪贴板。请粘到自己的邮箱，发给 2160634966@qq.com、2715240991@qq.com、355594812@qq.com；实在不行再加微信 w13908105242（备注来意）。';
+        toast('已复制加密结果，请手动发给上面三个邮箱', 5000, 'ok');
       } else {
-        $('#fallback-status').textContent = '浏览器不允许自动复制，请用「下载加密结果文件」后发给微信 w13908105242。';
+        $('#fallback-status').textContent = '浏览器不允许自动复制，请用「下载加密结果文件」后作为附件发给上面三个邮箱，不行再加微信 w13908105242。';
         toast('复制失败，请用下载文件的方式', 5000, 'err');
       }
     } catch (err) {
@@ -985,8 +985,8 @@ ${JSON.stringify(pkg)}
     a.download = `菌护禾-完整加密结果-${($('#cand-name').value || '同学').trim()}-${Date.now()}.txt`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 3000);
-    $('#fallback-status').textContent = '已下载完整加密结果文件：加微信 w13908105242，把文件发给她即可。';
-    toast('已下载完整加密结果文件，加微信 w13908105242 发送', 4200, 'ok');
+    $('#fallback-status').textContent = '已下载加密结果文件：请用邮件把它作为附件发给 2160634966@qq.com、2715240991@qq.com、355594812@qq.com；不行再加微信 w13908105242（备注来意）。';
+    toast('已下载加密结果文件，请手动发给上面三个邮箱', 4200, 'ok');
   }
 
   async function copyRecipients() {
