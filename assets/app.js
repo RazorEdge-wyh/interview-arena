@@ -1,6 +1,6 @@
-﻿/* 菌护禾 · 团队招募评估（v5）
- * 5 题（2 通用 + 1 项目 + 2 方向专业）→ 自我介绍 → AI 真实多轮面试 → 评分
- * 页面只展示分数；详细分析加密后发到团队邮箱
+﻿/* 金种子杯 · 菌护禾 · 团队招募评估（v6）
+ * 项目介绍（可跳过）→ 5 题（2 通用 + 1 项目 + 2 方向专业）→ 自我介绍（最多 3 次）→ AI 真实多轮面试 → 评分
+ * 页面只展示分数；完整分析随邮件发给团队
  */
 (() => {
   'use strict';
@@ -10,6 +10,7 @@
   const DRAFT_KEY = 'ia_draft_v1';
   const DEFAULT_BASE = 'https://api.deepseek.com';
   const DEFAULT_MODEL = 'deepseek-flash';
+  const MAX_INTRO_TRIES = 3;
 
   const state = {
     data: null,
@@ -17,9 +18,9 @@
     answers: {},
     intro: '',
     introScore: null,
+    introTries: 0,
     chat: [],
     chatActive: false,
-    chatRound: 0,
     chatScored: null,
     report: null,
     encPackage: null,
@@ -42,7 +43,7 @@
     toast._t = setTimeout(() => el.classList.add('hidden'), ms);
   }
 
-  /* ---------------- 配置 / 密钥 ---------------- */
+  /* ---------------- 配置 ---------------- */
   function getSettings() {
     let s = {};
     try { s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); } catch (_) {}
@@ -53,41 +54,7 @@
       apiKey: s.apiKey || cfg.apiKey || '',
     };
   }
-
-  function saveSettings(patch) {
-    const cur = getSettings();
-    const next = { baseUrl: cur.baseUrl, model: cur.model, apiKey: cur.apiKey, ...patch };
-    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(next)); } catch (_) {}
-    refreshSettingsUI();
-    return next;
-  }
-
-  function refreshSettingsUI() {
-    const s = getSettings();
-    if ($('#cfg-base')) $('#cfg-base').value = s.baseUrl;
-    if ($('#cfg-model')) $('#cfg-model').value = s.model;
-    if ($('#cfg-key')) $('#cfg-key').value = s.apiKey;
-    if ($('#cfg-status')) $('#cfg-status').textContent = s.apiKey ? '已配置（本机）' : '未配置（本地规则评分）';
-  }
-
-  function hasAI() {
-    return !!getSettings().apiKey;
-  }
-
-  function seedSettingsFromUrl() {
-    let params;
-    try { params = new URLSearchParams(location.search); } catch (_) { return; }
-    if (!params.get('key') && !params.get('model') && !params.get('base')) return;
-    const cur = getSettings();
-    saveSettings({
-      apiKey: params.get('key') || cur.apiKey,
-      model: params.get('model') || cur.model,
-      baseUrl: params.get('base') || cur.baseUrl,
-    });
-    ['key', 'model', 'base'].forEach((k) => params.delete(k));
-    const qs = params.toString();
-    try { history.replaceState(null, '', location.pathname + (qs ? '?' + qs : '') + location.hash); } catch (_) {}
-  }
+  function hasAI() { return !!getSettings().apiKey; }
 
   /* ---------------- 数据 ---------------- */
   async function loadData() {
@@ -96,27 +63,33 @@
     return res.json();
   }
 
-  function dimKeys() {
-    return Object.keys(state.data.dimensions);
-  }
-
-  function dir() {
-    return (state.data.directions || []).find((d) => d.id === state.direction) || state.data.directions[0];
-  }
-
+  const dimKeys = () => Object.keys(state.data.dimensions);
+  const dir = () => (state.data.directions || []).find((d) => d.id === state.direction) || state.data.directions[0];
   function questionsFor(directionId) {
     const d = (state.data.directions || []).find((x) => x.id === directionId) || state.data.directions[0];
     return [...state.data.generalQuestions, state.data.projectQuestion, ...d.roleQuestions];
   }
 
+  /* ---------------- 渲染：项目介绍 ---------------- */
+  function renderProjectIntro() {
+    const p = state.data.projectIntro || {};
+    if ($('#project-lead')) $('#project-lead').textContent = p.lead || '';
+    if (!$('#project-intro')) return;
+    $('#project-intro').innerHTML = (p.sections || []).map((s) => `
+      <div class="report-block">
+        <h3>${esc(s.h)}</h3>
+        ${(s.p || []).map((x) => `<p>${esc(x)}</p>`).join('')}
+      </div>`).join('');
+  }
+
   /* ---------------- 渲染：团队 / 方向 / 题目 ---------------- */
   function renderTeam() {
     const t = state.data.team || {};
-    $('#team-name').textContent = `${t.name || '菌护禾'} · 团队招募`;
-    $('#team-track').textContent = t.track || '';
-    $('#team-positioning').textContent = t.positioning || '';
-    $('#team-stage').textContent = t.stage || '';
-    $('#team-hiring-note').textContent = t.hiringNote || '';
+    if ($('#team-name')) $('#team-name').textContent = `${t.name || '菌护禾'} · 团队招募`;
+    if ($('#team-track')) $('#team-track').textContent = t.track || '';
+    if ($('#team-positioning')) $('#team-positioning').textContent = t.positioning || '';
+    if ($('#team-stage')) $('#team-stage').textContent = t.stage || '';
+    if ($('#team-hiring-note')) $('#team-hiring-note').textContent = t.hiringNote || '';
   }
 
   function renderDirections() {
@@ -129,9 +102,7 @@
         <div class="role-name">${esc(d.name)}</div>
         <div class="role-mission">${esc(d.mission)}</div>
       </div>`).join('');
-    $$('.role-card', wrap).forEach((card) => {
-      card.addEventListener('click', () => selectDirection(card.dataset.dir));
-    });
+    $$('.role-card', wrap).forEach((card) => card.addEventListener('click', () => selectDirection(card.dataset.dir)));
     sel.addEventListener('change', () => selectDirection(sel.value));
     markDirection();
   }
@@ -143,6 +114,9 @@
   function selectDirection(id) {
     state.direction = id;
     state.answers = {};
+    state.chat = [];
+    state.chatScored = null;
+    state.chatActive = false;
     if ($('#cand-direction')) $('#cand-direction').value = id;
     markDirection();
     renderMCQ();
@@ -192,7 +166,7 @@
     dimKeys().forEach((k) => { percent[k] = maxTotal[k] ? (dims[k] / maxTotal[k]) * 100 : 0; });
     const complete = qs.every((q) => state.answers[q.id] !== undefined);
     const total = dimKeys().reduce((a, k) => a + percent[k], 0) / dimKeys().length;
-    return { dims, percent, total, complete, count: qs.length };
+    return { dims, percent, total, complete };
   }
 
   function computeFit(percent) {
@@ -208,12 +182,7 @@
   async function callAI(messages, opts = {}) {
     const s = getSettings();
     if (!s.apiKey) throw new Error('NO_KEY');
-    const body = {
-      model: s.model,
-      messages,
-      temperature: opts.temperature ?? 0.4,
-      max_tokens: opts.maxTokens ?? 900,
-    };
+    const body = { model: s.model, messages, temperature: opts.temperature ?? 0.4, max_tokens: opts.maxTokens ?? 900 };
     if (opts.json !== false) body.response_format = { type: 'json_object' };
     const res = await fetch(s.baseUrl + '/chat/completions', {
       method: 'POST',
@@ -235,36 +204,29 @@
     }
     return text.trim();
   }
-
-  async function callChat(messages) {
-    return callAI(messages, { json: false, temperature: 0.6, maxTokens: 500 });
-  }
+  const callChat = (messages, maxTokens = 500) => callAI(messages, { json: false, temperature: 0.6, maxTokens });
 
   /* ---------------- 自我介绍 ---------------- */
   function heuristicIntro(text) {
     const len = text.trim().length;
     const digits = (text.match(/\d+/g) || []).length;
-    const structure = clamp(40 + Math.min(30, Math.round(len / 20)), 0, 85);
-    const specificity = clamp(30 + Math.min(40, digits * 8), 0, 85);
-    const selfAwareness = /反思|学到|不足|改进|下次/.test(text) ? 70 : 45;
-    const roleFit = /(试验|样机|传感器|数据|合作社|农户|田间|代码|蛋白|发酵|销售|渠道|运营|申报)/.test(text) ? 68 : 48;
-    const dimensions = {};
-    const map = { structure, specificity, selfAwareness, roleFit };
-    Object.keys(map).forEach((k) => { dimensions[k] = { score: Math.round(map[k] / 4), reason: '本地规则评分（仅供参考）' }; });
-    const total = Math.round(Object.values(map).reduce((a, b) => a + b, 0) / 4);
-    return {
-      dimensions, total, mode: 'local',
-      highlights: ['结构基本完整'], risks: ['缺少可验证的数字或细节'], suggestions: ['补充具体数字与结果'],
+    const dimensions = {
+      structure: { score: Math.round(clamp(40 + Math.min(30, Math.round(len / 20)), 0, 85) / 4), reason: '本地规则评分（仅供参考）' },
+      specificity: { score: Math.round(clamp(30 + Math.min(40, digits * 8), 0, 85) / 4), reason: '本地规则评分（仅供参考）' },
+      selfAwareness: { score: Math.round((/反思|学到|不足|改进|下次/.test(text) ? 70 : 45) / 4), reason: '本地规则评分（仅供参考）' },
+      roleFit: { score: Math.round((/(试验|样机|传感器|数据|合作社|农户|田间|代码|发酵|销售|渠道|运营|申报)/.test(text) ? 68 : 48) / 4), reason: '本地规则评分（仅供参考）' },
     };
+    const total = Math.round(Object.values(dimensions).reduce((a, d) => a + d.score, 0) * 4 / 4);
+    return { dimensions, total, mode: 'local', highlights: [], risks: [], suggestions: [] };
   }
 
   async function scoreIntro(text) {
-    if (!text || text.trim().length < 30) throw new Error('自我介绍太短（至少 30 字）');
+    if (!text || text.trim().length < 30) throw new Error('至少写 30 字');
     const d = dir();
-    if (!hasAI()) { toast('未配置 AI，使用本地规则评分'); return heuristicIntro(text); }
+    if (!hasAI()) { toast('AI 暂不可用，使用本地规则评分'); return heuristicIntro(text); }
     const rubric = state.data.introRubric.map((r) => `- ${r.key}（${r.label}）：${r.desc}`).join('\n');
-    const prompt = `你是菌护禾团队的面试官。请按 4 个维度给候选人的自我介绍打分（每维 0–25 分），只输出 JSON。
-团队：${state.data.team.name}——${state.data.team.positioning}
+    const prompt = `你是菌护禾团队的面试官。请按 4 个维度给这位同学的自我介绍打分（每维 0–25 分），只输出 JSON。
+团队：${state.data.team.name}——${state.data.team.positioning}（湖南科技大学学生团队）
 方向：${d.name}。要求：${(d.mustHave || []).join('、')}
 维度：
 ${rubric}
@@ -273,7 +235,7 @@ ${rubric}
 {"dimensions":{"structure":{"score":0,"reason":"引用原文依据"},"specificity":{"score":0,"reason":""},"selfAwareness":{"score":0,"reason":""},"roleFit":{"score":0,"reason":""}},"total":0,"highlights":["2-3条"],"risks":["2-3条"],"suggestions":["2-3条改进"]}
 要求：分数克制、理由引用原文关键词；total = 四维之和（0–100）；不要输出 JSON 以外内容。
 
-候选人：${$('#cand-name').value || '候选人'}；方向 ${d.name}；经验 ${$('#cand-exp').value}
+同学：${$('#cand-name').value || '同学'}；方向 ${d.name}；${$('#cand-exp').value}
 自我介绍：
 ${text}`;
     const out = await callAI([
@@ -285,15 +247,29 @@ ${text}`;
     return { ...out, total, mode: 'ai' };
   }
 
-  function renderIntroResult(r, visible = true) {
+  function renderIntroResult(r) {
     const box = $('#intro-result');
-    if (!visible) { box.classList.add('hidden'); return; }
     box.classList.remove('hidden');
     box.innerHTML = `
       <h3>自我介绍评分 <span class="verdict">${fmt(r.total)} / 100 · ${r.mode === 'ai' ? 'AI 评分' : '本地规则评分'}</span></h3>
       ${state.data.introRubric.map((x) => bar(x.label, ((r.dimensions && r.dimensions[x.key] && r.dimensions[x.key].score) || 0) * 4)).join('')}
-      <p class="note">详细点评会随加密分析发送给团队；此处只展示分数。</p>`;
-    saveDraft();
+      <p class="note">这只是分数；完整分析会随邮件发送给团队。</p>`;
+    refreshIntroButton();
+  }
+
+  function refreshIntroButton() {
+    const left = MAX_INTRO_TRIES - state.introTries;
+    const btn = $('#btn-score-intro');
+    if (!btn) return;
+    if (state.introTries >= MAX_INTRO_TRIES) {
+      btn.disabled = true;
+      btn.textContent = '已提交 3 次（不可再改）';
+      $('#intro-tries').textContent = '已用完 3 次提交机会，可以进入下一步。';
+    } else {
+      btn.disabled = false;
+      btn.textContent = `提交并评分（第 ${state.introTries + 1} / ${MAX_INTRO_TRIES} 次）`;
+      $('#intro-tries').textContent = `还可以提交 ${left} 次；取最好的一次成绩。`;
+    }
   }
 
   /* ---------------- 聊天（AI 面试） ---------------- */
@@ -317,16 +293,10 @@ ${text}`;
     box.scrollTop = box.scrollHeight;
   }
 
-  function countQuestions() {
-    return state.chat.filter((m) => m.role === 'assistant' && m.round).length;
-  }
-
-  function pushAssistant(text, round) {
-    state.chat.push({ role: 'assistant', content: text, round });
-  }
-
-  function setChatStatus(t) { $('#chat-status').textContent = t; }
-
+  const questionCount = () => state.chat.filter((m) => m.role === 'assistant' && m.round).length;
+  const answerCount = () => state.chat.filter((m) => m.role === 'user').length;
+  const pushAssistant = (text, round) => state.chat.push({ role: 'assistant', content: text, round: round || null });
+  const setChatStatus = (t) => { $('#chat-status').textContent = t; };
   function enableChatInput(on) {
     $('#chat-input').disabled = !on;
     $('#btn-send-chat').disabled = !on;
@@ -336,7 +306,6 @@ ${text}`;
   async function startChat() {
     if (state.chatActive) return;
     state.chat = [];
-    state.chatRound = 0;
     state.chatScored = null;
     state.chatActive = true;
     $('#btn-start-chat').disabled = true;
@@ -348,21 +317,17 @@ ${text}`;
     const rounds = state.data.chat.rounds;
     try {
       if (!hasAI()) throw new Error('NO_KEY');
-      const sys = chatPromptReplace(state.data.chat.systemPrompt);
       const first = await callChat([
-        { role: 'system', content: sys },
+        { role: 'system', content: chatPromptReplace(state.data.chat.systemPrompt) },
         { role: 'user', content: '请开始第 1 轮提问，只问一个问题。' },
       ]);
-      state.chatRound = 1;
       pushAssistant(first, 1);
       renderChatLog();
       enableChatInput(true);
       setChatStatus(`第 1 / ${rounds} 轮`);
     } catch (err) {
-      if (err.message === 'NO_KEY') toast('未配置 AI，使用固定问题');
+      if (err.message === 'NO_KEY') toast('AI 暂不可用，使用固定问题');
       else toast(`AI 启动失败：${err.message}；改用固定问题`);
-      state.chatActive = true;
-      state.chatRound = 1;
       pushAssistant(state.data.chat.fallbackQuestions[0], 1);
       renderChatLog();
       enableChatInput(true);
@@ -374,58 +339,63 @@ ${text}`;
     if (!state.chatActive) return;
     const text = $('#chat-input').value.trim();
     if (!text) return;
+    const rounds = state.data.chat.rounds;
+    const answered = answerCount();
+    if (answered >= rounds) return;
     state.chat.push({ role: 'user', content: text });
     $('#chat-input').value = '';
     renderChatLog();
     enableChatInput(false);
-    const rounds = state.data.chat.rounds;
+
+    const isLast = answered + 1 >= rounds;
+    if (isLast) {
+      setChatStatus('已完成全部轮次，请点击「结束面试并评分」');
+      // 收尾（AI 可用时由 AI 说一句结束语，否则用固定收尾）
+      try {
+        if (!hasAI()) throw new Error('NO_KEY');
+        const closing = await callChat([
+          { role: 'system', content: chatPromptReplace(state.data.chat.systemPrompt) },
+          ...state.chat.map((m) => ({ role: m.role, content: m.content })),
+          { role: 'user', content: chatPromptReplace(state.data.chat.closingPrompt) },
+        ], 300);
+        pushAssistant(closing);
+      } catch (_) {
+        pushAssistant('好的，我的问题问完了，感谢你的回答。可以点击「结束面试并评分」。');
+      }
+      renderChatLog();
+      state.chatActive = false;
+      setChatStatus('已完成全部轮次，请点击「结束面试并评分」');
+      return;
+    }
+
     setChatStatus('面试官思考中…');
     try {
       if (!hasAI()) throw new Error('NO_KEY');
-      const sys = chatPromptReplace(state.data.chat.systemPrompt);
-      const done = countQuestions() >= rounds;
-      const messages = [{ role: 'system', content: sys }, ...state.chat.map((m) => ({ role: m.role, content: m.content }))];
-      if (done) {
-        // 已完成轮数，不再追问
-        enableChatInput(false);
-        state.chatActive = false;
-        setChatStatus('已完成全部轮次，点「结束面试并评分」');
-        return;
-      }
-      const next = await callChat(messages);
-      state.chatRound = countQuestions() + 1;
-      pushAssistant(next, state.chatRound);
+      const next = await callChat([
+        { role: 'system', content: chatPromptReplace(state.data.chat.systemPrompt) },
+        ...state.chat.map((m) => ({ role: m.role, content: m.content })),
+      ]);
+      pushAssistant(next, answered + 2);
       renderChatLog();
-      if (countQuestions() >= rounds) {
-        state.chatActive = false;
-        setChatStatus('已完成全部轮次，点「结束面试并评分」');
-      } else {
-        enableChatInput(true);
-        setChatStatus(`第 ${countQuestions()} / ${rounds} 轮`);
-      }
+      enableChatInput(true);
+      setChatStatus(`第 ${answered + 2} / ${rounds} 轮`);
     } catch (err) {
-      // 固定问题兜底
-      const rounds2 = state.data.chat.rounds;
-      const asked = countQuestions();
-      if (asked < rounds2) {
-        pushAssistant(state.data.chat.fallbackQuestions[asked], asked + 1);
-        renderChatLog();
-        enableChatInput(true);
-        setChatStatus(`第 ${asked + 1} / ${rounds2} 轮（固定问题）`);
-      } else {
-        state.chatActive = false;
-        setChatStatus('已完成全部轮次，点「结束面试并评分」');
-      }
+      const qs = state.data.chat.fallbackQuestions;
+      const idx = Math.min(answered + 1, qs.length - 1);
+      pushAssistant(qs[idx], answered + 2);
+      renderChatLog();
+      enableChatInput(true);
+      setChatStatus(`第 ${answered + 2} / ${rounds} 轮（固定问题）`);
     }
   }
 
   function transcriptText() {
-    return state.chat.map((m) => `${m.role === 'assistant' ? '面试官' : '候选人'}：${m.content}`).join('\n\n');
+    return state.chat.map((m) => `${m.role === 'assistant' ? '面试官' : '同学'}：${m.content}`).join('\n\n');
   }
 
   async function finishChat() {
     if (!state.chat.length) { toast('还没有开始面试'); return; }
-    if (state.chatScored) { goStep(4); return; }
+    if (state.chatScored) { goStep(5); return; }
     const btn = $('#btn-finish-chat');
     btn.disabled = true;
     setChatStatus('AI 正在打分…');
@@ -433,7 +403,7 @@ ${text}`;
       let out;
       if (!hasAI()) {
         out = heuristicChat();
-        toast('未配置 AI，使用本地规则打分');
+        toast('AI 暂不可用，使用本地规则打分');
       } else {
         const prompt = chatPromptReplace(state.data.chat.scoringPrompt).replace('{transcript}', transcriptText());
         out = await callAI([
@@ -445,12 +415,12 @@ ${text}`;
       state.chatScored = sanitizeChatScore(out);
       renderChatScore();
       setChatStatus('评分完成');
-      setTimeout(() => goStep(4), 700);
+      setTimeout(() => goStep(5), 700);
     } catch (err) {
       console.error(err);
       setChatStatus('打分失败：' + err.message);
       btn.disabled = false;
-      toast('AI 打分失败，请重试或联系团队');
+      toast('打分失败，请重试');
     }
   }
 
@@ -472,13 +442,13 @@ ${text}`;
   }
 
   function heuristicChat() {
-    const answered = state.chat.filter((m) => m.role === 'user').length;
+    const answered = answerCount();
     const avgLen = state.chat.filter((m) => m.role === 'user').reduce((a, m) => a + m.content.length, 0) / Math.max(1, answered);
-    const score = clamp(Math.round(45 + Math.min(30, avgLen / 12)), 0, 85);
+    const per = clamp(Math.round((45 + Math.min(30, avgLen / 12)) / 4), 0, 25);
     return {
-      overall: score * 4 > 100 ? 100 : score * 4,
-      perQuestion: Array.from({ length: answered }, (_, i) => ({ round: i + 1, score: Math.round(score / 4), comment: '本地规则评分（仅供参考）' })),
-      strengths: ['回答完整'], risks: ['细节可更具体'], suggestions: ['补充数字与结果'], verdict: '本地规则评分，仅供参考', mode: 'local',
+      overall: clamp(per * 4, 0, 100),
+      perQuestion: Array.from({ length: answered }, (_, i) => ({ round: i + 1, score: per, comment: '本地规则评分（仅供参考）' })),
+      strengths: [], risks: [], suggestions: [], verdict: '本地规则评分', mode: 'local',
     };
   }
 
@@ -489,14 +459,14 @@ ${text}`;
     box.innerHTML = `
       <h3>AI 面试评分 <span class="verdict">${fmt(s.overall)} / 100 · ${s.mode === 'ai' ? 'AI 评分' : '本地规则评分'}</span></h3>
       ${s.scores.map((x) => bar(`第 ${x.round} 轮`, x.score * 4)).join('')}
-      <p class="note">逐轮详细点评随加密分析发送给团队；此处只展示分数。</p>`;
+      <p class="note">逐轮详细点评会随邮件发送给团队；这里只看分数。</p>`;
   }
 
-  /* ---------------- 评分总分 ---------------- */
+  /* ---------------- 总分 ---------------- */
   function verdictOf(total) {
     if (total >= 80) return '强推荐进入下一轮';
     if (total >= 65) return '推荐进入下一轮';
-    if (total >= 50) return '待定，建议补面';
+    if (total >= 50) return '待定，建议再聊聊';
     return '暂不建议推进';
   }
 
@@ -512,7 +482,7 @@ ${text}`;
       key: k, label: state.data.dimensions[k].label, type: state.data.dimensions[k].type, value: mcq.percent[k] ?? 0,
     })).sort((a, b) => a.value - b.value);
     return {
-      name: ($('#cand-name').value || '匿名候选人').trim(),
+      name: ($('#cand-name').value || '同学').trim(),
       direction: dir().name,
       directionId: state.direction,
       exp: $('#cand-exp').value,
@@ -558,21 +528,19 @@ ${text}`;
       <div class="split">${partsHtml}</div>
       <h3>四维画像</h3>
       <div class="dim-grid">${dimsHtml}</div>
-      <h3>方向匹配</h3>
+      <h3>方向契合</h3>
       <div class="dim-grid">${fit}</div>
       ${chatScores ? `<h3>AI 面试逐轮得分</h3><div class="dim-grid">${chatScores}</div>` : ''}
-      <p class="note">页面只展示分数。详细分析（自我介绍点评、每轮面试点评、优势/风险/建议、原始回答）已加密，发送后仅团队可用私钥解密。</p>`;
-    refreshMailPreview();
+      <p class="note">这里只展示分数；完整分析会随邮件发送给团队。</p>`;
   }
 
-  /* ---------------- 加密 ---------------- */
+  /* ---------------- 邮件（内容加密，页面不展示） ---------------- */
   function b64(bytes) {
     let s = '';
     const arr = new Uint8Array(bytes);
     for (let i = 0; i < arr.length; i += 0x8000) s += String.fromCharCode.apply(null, arr.subarray(i, i + 0x8000));
     return btoa(s);
   }
-
   async function gzipBytes(bytes) {
     if (typeof CompressionStream === 'undefined') return bytes;
     const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'));
@@ -583,27 +551,18 @@ ${text}`;
     const publicJwk = await (await fetch('public_key.json', { cache: 'no-store' })).json();
     const pub = await crypto.subtle.importKey('jwk', publicJwk, { name: 'RSA-OAEP', hash: 'SHA-256' }, false, ['encrypt']);
     const payload = {
-      v: 1,
-      to: state.data.mailTo,
-      createdAt: new Date().toISOString(),
+      v: 1, to: state.data.mailTo, createdAt: new Date().toISOString(),
       candidate: { name: report.name, direction: report.direction, directionId: report.directionId, exp: report.exp },
       scores: {
-        total: Math.round(report.total * 10) / 10,
-        verdict: report.verdict,
+        total: Math.round(report.total * 10) / 10, verdict: report.verdict,
         parts: report.parts.map((p) => ({ name: p.name, score: Math.round(p.score * 10) / 10, weight: p.weight })),
         dims: report.dims.map((d) => ({ label: d.label, type: d.type, value: Math.round(d.value * 10) / 10 })),
         fit: report.fit.map((f) => ({ name: f.name, score: Math.round(f.score * 10) / 10 })),
         chat: report.chat ? { overall: report.chat.overall, perQuestion: report.chat.scores, mode: report.chat.mode } : null,
       },
       analysis: {
-        intro: report.intro ? {
-          total: report.intro.total, mode: report.intro.mode, dimensions: report.intro.dimensions,
-          highlights: report.intro.highlights, risks: report.intro.risks, suggestions: report.intro.suggestions,
-        } : null,
-        chat: report.chat ? {
-          strengths: report.chat.strengths, risks: report.chat.risks,
-          suggestions: report.chat.suggestions, verdict: report.chat.verdict,
-        } : null,
+        intro: report.intro ? { total: report.intro.total, mode: report.intro.mode, dimensions: report.intro.dimensions, highlights: report.intro.highlights, risks: report.intro.risks, suggestions: report.intro.suggestions } : null,
+        chat: report.chat ? { strengths: report.chat.strengths, risks: report.chat.risks, suggestions: report.chat.suggestions, verdict: report.chat.verdict } : null,
       },
       introText: report.introText,
       mcqAnswers: report.mcqAnswers,
@@ -622,97 +581,73 @@ ${text}`;
   async function ensurePackage() {
     if (!state.report) renderReport();
     if (!state.encPackage) {
-      state.report = state.report || buildReport();
+      state.report = buildReport();
       state.encPackage = await encryptReport(state.report);
     }
     return state.encPackage;
   }
 
+  const recipients = () => (state.data.mailTo || []).join(',');
   function mailSubject() {
-    const name = ($('#cand-name').value || '候选人').trim();
+    const name = ($('#cand-name').value || '同学').trim();
     const total = state.report ? fmt(state.report.total, 1) : '';
-    return `【菌护禾】${name} 的加密面试分析${total ? `（${total} 分）` : ''}`;
+    return `【金种子杯·菌护禾】${name} 的面试结果${total ? `（${total} 分）` : ''}`;
   }
-
-  function mailRecipients() {
-    return (state.data.mailTo || []).join(',');
-  }
-
   function mailBody(pkg) {
-    const r = state.report;
-    const total = r ? fmt(r.total, 1) : '';
-    return `菌护禾 · 加密面试分析
+    const r = state.report || {};
+    return `金种子杯 · 菌护禾 团队招募
 
-候选人：${r ? r.name : ''}
-方向：${r ? r.direction : ''}
-综合分：${total} / 100
+同学：${r.name || ''}
+方向：${r.direction || ''}
+综合分：${fmt(r.total, 1)} / 100
 生成时间：${new Date().toLocaleString('zh-CN')}
 
-详细分析已加密（AES-256-GCM + RSA-OAEP），请用团队私钥在 /decrypt.html 解密：
-===BEGIN ENCRYPTED ANALYSIS===
+完整分析（仅供团队查看）如下：
+===BEGIN ANALYSIS===
 ${JSON.stringify(pkg)}
-===END ENCRYPTED ANALYSIS===
+===END ANALYSIS===
 `;
-  }
-
-  async function refreshMailPreview() {
-    if (!state.report) return;
-    try {
-      const pkg = await ensurePackage();
-      const body = mailBody(pkg);
-      $('#enc-output').value = JSON.stringify(pkg);
-      $('#mail-preview').value = `收件人：${mailRecipients()}\n主题：${mailSubject()}\n\n${body}`;
-      $('#mail-status').textContent = `加密包 ${JSON.stringify(pkg).length} 字符；邮件正文含完整密文。`;
-      $('#enc-status').textContent = '';
-    } catch (err) {
-      $('#mail-status').textContent = '生成加密包失败：' + err.message;
-    }
   }
 
   async function openMail() {
     if (!state.report) { toast('请先完成评分'); return; }
     const btn = $('#btn-mail');
-    btn.disabled = true; btn.textContent = '准备邮件…';
+    btn.disabled = true; btn.textContent = '正在准备…';
     try {
       const pkg = await ensurePackage();
-      const url = `mailto:${mailRecipients()}?subject=${encodeURIComponent(mailSubject())}&body=${encodeURIComponent(mailBody(pkg))}`;
-      if (url.length > 6000) toast('密文较长，邮件客户端可能截断；建议用「下载 .eml」');
-      $('#mail-status').textContent = `已打开邮件客户端（收件人：${mailRecipients()}）。若无反应请用「下载 .eml」。`;
+      const url = `mailto:${recipients()}?subject=${encodeURIComponent(mailSubject())}&body=${encodeURIComponent(mailBody(pkg))}`;
+      if (url.length > 6000) toast('内容较长，如邮件被截断请用「下载邮件文件」');
+      $('#mail-status').textContent = '已打开邮件客户端，请确认收件人后点发送。';
       window.location.href = url;
     } catch (err) {
-      toast('生成邮件失败：' + err.message);
+      toast('准备邮件失败：' + err.message);
     } finally {
-      btn.disabled = false; btn.textContent = '打开邮件客户端';
+      btn.disabled = false; btn.textContent = '发送邮件给团队';
     }
   }
 
   async function downloadEml() {
     if (!state.report) { toast('请先完成评分'); return; }
     const btn = $('#btn-eml');
-    btn.disabled = true; btn.textContent = '生成中…';
+    btn.disabled = true;
     try {
       const pkg = await ensurePackage();
       const subjectEnc = '=?UTF-8?B?' + b64(new TextEncoder().encode(mailSubject())) + '?=';
       const bodyB64 = b64(new TextEncoder().encode(mailBody(pkg))).replace(/(.{76})/g, '$1\r\n');
       const eml = [
-        `To: ${mailRecipients()}`,
-        `Subject: ${subjectEnc}`,
-        'MIME-Version: 1.0',
-        'Content-Type: text/plain; charset=UTF-8',
-        'Content-Transfer-Encoding: base64',
-        '',
-        bodyB64,
+        `To: ${recipients()}`, `Subject: ${subjectEnc}`, 'MIME-Version: 1.0',
+        'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', bodyB64,
       ].join('\r\n');
       const a = document.createElement('a');
       a.href = URL.createObjectURL(new Blob([eml], { type: 'message/rfc822' }));
-      a.download = `菌护禾-加密分析-${($('#cand-name').value || '候选人').trim()}-${Date.now()}.eml`;
+      a.download = `菌护禾-面试结果-${($('#cand-name').value || '同学').trim()}-${Date.now()}.eml`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 3000);
-      $('#mail-status').textContent = '已下载 .eml：双击用邮件客户端打开，确认收件人后发送。';
+      $('#mail-status').textContent = '已下载邮件文件：双击打开后点发送即可。';
     } catch (err) {
-      toast('生成 .eml 失败：' + err.message);
+      toast('下载失败：' + err.message);
     } finally {
-      btn.disabled = false; btn.textContent = '下载 .eml 邮件';
+      btn.disabled = false;
     }
   }
 
@@ -720,12 +655,10 @@ ${JSON.stringify(pkg)}
     if (!state.report) { toast('请先完成评分'); return; }
     try {
       const pkg = await ensurePackage();
-      await navigator.clipboard.writeText(JSON.stringify(pkg));
-      toast('已复制加密内容');
+      await navigator.clipboard.writeText(mailBody(pkg));
+      toast('已复制邮件内容，粘贴到邮件里发送即可');
     } catch (_) {
-      $('#enc-output').select();
-      document.execCommand('copy');
-      toast('已复制（兼容模式）');
+      toast('复制失败，请用「发送邮件给团队」');
     }
   }
 
@@ -733,11 +666,10 @@ ${JSON.stringify(pkg)}
   function saveDraft() {
     try {
       localStorage.setItem(DRAFT_KEY, JSON.stringify({
-        direction: state.direction, answers: state.answers, intro: state.intro,
+        direction: state.direction, answers: state.answers, intro: state.intro, introTries: state.introTries,
       }));
     } catch (_) {}
   }
-
   function restoreDraft() {
     try {
       const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}');
@@ -745,6 +677,7 @@ ${JSON.stringify(pkg)}
         if (d.direction) state.direction = d.direction;
         if (d.answers) state.answers = d.answers;
         if (typeof d.intro === 'string') state.intro = d.intro;
+        if (Number.isFinite(d.introTries)) state.introTries = d.introTries;
       }
     } catch (_) {}
   }
@@ -759,7 +692,7 @@ ${JSON.stringify(pkg)}
       li.classList.toggle('active', k === n);
       li.classList.toggle('done', k < n);
     });
-    if (n === 4) {
+    if (n === 5) {
       renderReport();
       setTimeout(() => { const r = document.querySelector('#report'); if (r) r.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 50);
     }
@@ -770,6 +703,7 @@ ${JSON.stringify(pkg)}
     state.answers = {};
     state.intro = '';
     state.introScore = null;
+    state.introTries = 0;
     state.chat = [];
     state.chatActive = false;
     state.chatScored = null;
@@ -788,23 +722,13 @@ ${JSON.stringify(pkg)}
     $('#btn-finish-chat').disabled = true;
     enableChatInput(false);
     renderMCQ();
+    refreshIntroButton();
     goStep(1);
     toast('已重新开始');
   }
 
   /* ---------------- 事件 ---------------- */
   function bind() {
-    $('#btn-settings').addEventListener('click', () => $('#settings').classList.toggle('hidden'));
-    $('#btn-settings-close').addEventListener('click', () => $('#settings').classList.add('hidden'));
-    $('#btn-settings-save').addEventListener('click', () => {
-      saveSettings({ baseUrl: $('#cfg-base').value.trim(), model: $('#cfg-model').value.trim(), apiKey: $('#cfg-key').value.trim() });
-      toast('已保存');
-    });
-    $('#btn-settings-clear').addEventListener('click', () => {
-      saveSettings({ apiKey: '' });
-      toast('已清除 Key');
-    });
-
     $('#cand-name').addEventListener('input', saveDraft);
     $('#cand-exp').addEventListener('change', saveDraft);
     $('#intro-text').addEventListener('input', () => {
@@ -813,24 +737,35 @@ ${JSON.stringify(pkg)}
       saveDraft();
     });
 
-    $('#btn-to-step2').addEventListener('click', () => {
+    $('#btn-skip-intro').addEventListener('click', () => goStep(2));
+    $('#btn-start-eval').addEventListener('click', () => goStep(2));
+    $('#btn-to-step3').addEventListener('click', () => {
       if (!mcqScore().complete) { toast('还有题目没选'); return; }
-      goStep(2);
+      goStep(3);
     });
     $('#btn-score-intro').addEventListener('click', async (e) => {
+      if (state.introTries >= MAX_INTRO_TRIES) return;
       const btn = e.currentTarget;
-      btn.disabled = true; btn.textContent = '评分中…';
+      btn.disabled = true;
       try {
-        state.introScore = await scoreIntro(state.intro);
+        const r = await scoreIntro(state.intro);
+        state.introTries += 1;
+        if (!state.introScore || r.total > state.introScore.total) state.introScore = r;
         renderIntroResult(state.introScore);
-        toast('自我介绍已评分');
+        saveDraft();
+        toast(`第 ${state.introTries} 次提交完成`);
       } catch (err) {
-        toast('评分失败：' + err.message);
+        toast('提交失败：' + err.message);
       } finally {
-        btn.disabled = false; btn.textContent = '保存并评分';
+        refreshIntroButton();
       }
     });
-    $('#btn-to-step3').addEventListener('click', () => { state.intro = $('#intro-text').value; saveDraft(); goStep(3); });
+    $('#btn-to-step4').addEventListener('click', () => {
+      state.intro = $('#intro-text').value;
+      saveDraft();
+      goStep(4);
+    });
+
     $('#btn-start-chat').addEventListener('click', startChat);
     $('#btn-send-chat').addEventListener('click', sendChat);
     $('#chat-input').addEventListener('keydown', (e) => {
@@ -846,18 +781,17 @@ ${JSON.stringify(pkg)}
 
   async function init() {
     try {
-      seedSettingsFromUrl();
       state.data = await loadData();
       $('#disclaimer').textContent = state.data.disclaimer || '';
       restoreDraft();
+      renderProjectIntro();
       renderTeam();
       renderDirections();
       renderMCQ();
       $('#intro-text').value = state.intro;
       $('#intro-count').textContent = `${state.intro.length} / 3000`;
-      refreshSettingsUI();
+      refreshIntroButton();
       bind();
-      if (new URLSearchParams(location.search).get('settings') === '1') $('#settings').classList.remove('hidden');
       const demo = new URLSearchParams(location.search).get('demo') === '1';
       if (demo) runDemo(); else goStep(1);
     } catch (err) {
@@ -870,23 +804,25 @@ ${JSON.stringify(pkg)}
     state.direction = 'tech';
     $('#cand-direction').value = 'tech';
     markDirection();
-    $('#cand-name').value = '演示候选人';
+    $('#cand-name').value = '演示同学';
     state.answers = {};
-    questionsFor('tech').forEach((q, i) => { state.answers[q.id] = i === 0 ? 1 : i === 1 ? 2 : i === 2 ? 1 : i === 3 ? 1 : 2; });
+    questionsFor('tech').forEach((q, i) => { state.answers[q.id] = [1, 2, 1, 1, 2][i] || 1; });
     renderMCQ();
-    state.intro = '我本科做设施园艺，跟着老师做过草莓连作障碍的盆栽试验：3 个处理、3 次重复，第 7 天取根际土测活菌。我负责取样与平板计数，最后数据显示处理组比对照高约 0.8 个 log。这段经历让我学会把"感觉有效"变成可测指标。';
+    state.intro = '我是湖南科技大学园艺专业大二学生，跟着老师做过草莓连作障碍的盆栽试验：3 个处理、3 次重复，第 7 天取根际土测活菌。我负责取样与平板计数，最后处理组比对照高约 0.8 个 log。这段经历让我学会把“感觉有效”变成可测指标。';
     $('#intro-text').value = state.intro;
     $('#intro-count').textContent = `${state.intro.length} / 3000`;
+    state.introTries = 1;
     state.introScore = heuristicIntro(state.intro);
     state.chat = [
       { role: 'assistant', content: '你说做过草莓盆栽试验，能具体讲一下取样为什么取根表 1–2 mm 的土吗？', round: 1 },
       { role: 'user', content: '因为菌主要定殖在根表附近，取太远会稀释信号；我们每盆取 5 个点混匀，冰盒带回当天涂布。' },
       { role: 'assistant', content: '如果第 7 天计数发现处理组只高 0.2 个 log，你会先查什么？', round: 2 },
       { role: 'user', content: '先看重复间变异和计数方法的误差，再确认取样位置是否一致，之后才判断是不是真的没效果。' },
-      { role: 'assistant', content: '你觉得自己在这份工作里最大的短板是什么？', round: 3 },
-      { role: 'user', content: '硬件和传感器部分我只懂原理，动手少；打算先跟着把样机装一遍、学会标定。' },
-      { role: 'assistant', content: '最后一个问题：如果让你负责一个示范户，你会怎么开始？', round: 4 },
-      { role: 'user', content: '先和农户确认他最在意的问题（死苗率还是用工），再装一个点跑 7 天，用数据和他对齐预期。' },
+      { role: 'assistant', content: '你觉得自己加入这个项目最大的短板是什么？', round: 3 },
+      { role: 'user', content: '硬件和传感器我只懂原理，动手少；打算先跟着把样机装一遍、学会标定。' },
+      { role: 'assistant', content: '如果让你负责一个示范户，你会怎么开始？', round: 4 },
+      { role: 'user', content: '先和农户确认他最在意的问题，再装一个点跑 7 天，用数据和他对齐预期。' },
+      { role: 'assistant', content: '好的，我的问题问完了，感谢你的回答。可以点击「结束面试并评分」。' },
     ];
     state.chatScored = {
       overall: 74, mode: 'ai',
@@ -898,13 +834,11 @@ ${JSON.stringify(pkg)}
       ],
       strengths: ['试验细节具体', '结论纪律好'], risks: ['硬件动手经验少'], suggestions: ['补一个 7 天样机日志'], verdict: '适合农艺与试验方向',
     };
-    if ($('#chat-log')) {
-      renderChatLog();
-      $('#btn-start-chat').disabled = true;
-      $('#btn-finish-chat').disabled = false;
-      renderChatScore();
-    }
-    goStep(4);
+    renderChatLog();
+    $('#btn-start-chat').disabled = true;
+    $('#btn-finish-chat').disabled = false;
+    renderChatScore();
+    goStep(5);
   }
 
   document.addEventListener('DOMContentLoaded', init);

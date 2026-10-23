@@ -1,4 +1,4 @@
-/* 菌护禾 · 加密面试分析解密（浏览器内）
+﻿/* 菌护禾 · 加密面试分析解密（浏览器内）
  * 包格式：{"v":1,"alg":"RSA-OAEP-256+A256GCM+gzip","key":b64,"iv":b64,"data":b64}
  * 私钥：PKCS#8 PEM（tools/gen_keys.py 生成，无口令）
  */
@@ -6,7 +6,7 @@
   'use strict';
 
   const $ = (s, r = document) => r.querySelector(s);
-  const INTRO_LABELS = { structure: '结构清晰', specificity: '具体可验证', selfAwareness: '自我认知', roleFit: '方向匹配' };
+  const INTRO_LABELS = { structure: '结构清晰', specificity: '具体可验证', selfAwareness: '自我认知', roleFit: '方向契合' };
   let decrypted = null;
 
   function toast(msg, ms = 2600) {

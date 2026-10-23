@@ -42,16 +42,20 @@ html, body {
 .logo { display: none; }
 .topbar h1 {
   margin: 0;
-  font-size: 17px;
+  font-size: 24px;
   font-weight: 600;
-  letter-spacing: .02em;
+  letter-spacing: .04em;
+  line-height: 1.25;
 }
 .topbar .sub {
-  margin: 2px 0 0;
-  font-size: 12px;
-  color: var(--ink-3);
-  letter-spacing: .04em;
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--ink-2);
+  letter-spacing: .06em;
 }
+.topbar .sub .dot { color: var(--ink-3); margin: 0 2px; }
+.intro-actions { margin-top: 22px; }
+.project h3 { margin-top: 22px; }
 .topbar-right { display: flex; align-items: center; gap: 10px; }
 .badge { display: none; }
 
@@ -127,7 +131,7 @@ input:focus, select:focus, textarea:focus {
 .stepper { margin: 22px 0 8px; }
 .stepper ol {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   list-style: none;
   padding: 0;
   margin: 0;

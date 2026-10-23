@@ -94,7 +94,7 @@ def send_email(pkg: dict, candidate: str, total: float) -> str:
     msg["To"] = ", ".join(DEFAULT_MAIL_TO)
     msg.set_content(
         "菌护禾 · 加密面试分析\n\n"
-        f"候选人：{candidate}\n综合分：{total:.1f} / 100\n生成时间：{datetime.now():%Y-%m-%d %H:%M}\n\n"
+        f"同学：{candidate}\n综合分：{total:.1f} / 100\n生成时间：{datetime.now():%Y-%m-%d %H:%M}\n\n"
         "详细分析已加密，请用团队私钥在 /decrypt.html 解密：\n"
         "===BEGIN ENCRYPTED ANALYSIS===\n"
         + json.dumps(pkg, ensure_ascii=False)
@@ -161,6 +161,7 @@ def bar(label: str, value: float) -> None:
 st.session_state.setdefault("direction", "tech")
 st.session_state.setdefault("answers", {})
 st.session_state.setdefault("intro", "")
+st.session_state.setdefault("intro_tries", 0)
 st.session_state.setdefault("intro_score", None)
 st.session_state.setdefault("chat", [])
 st.session_state.setdefault("chat_scored", None)
@@ -168,9 +169,9 @@ st.session_state.setdefault("report", None)
 st.session_state.setdefault("pkg", None)
 
 with st.sidebar:
-    st.header("🌱 菌护禾 · 团队招募")
+    st.header("🌱 金种子杯 · 菌护禾")
     st.caption("情境测评 · 自我介绍 · AI 真实面试 · 评分")
-    name = st.text_input("姓名 / 昵称", placeholder="候选人")
+    name = st.text_input("姓名 / 昵称", placeholder="同学")
     dir_id = st.selectbox("方向", list(DIRECTIONS), format_func=lambda x: DIRECTIONS[x]["name"], key="dir_sel")
     if dir_id != st.session_state["direction"]:
         st.session_state["direction"] = dir_id
@@ -207,10 +208,10 @@ st.caption(f"已作答 {sum(answers.get(q['id']) is not None for q in questions(
 
 # ------------------------------------------------------------------ step 2
 st.divider()
-st.subheader("② 自我介绍")
-intro = st.text_area("250–500 字：现状 → 做过什么（带数字）→ 结果 → 反思", value=st.session_state["intro"], height=200, max_chars=3000)
+st.subheader("② 自我介绍（最多提交 3 次）")
+intro = st.text_area("不限结构，想写什么就写什么；最多提交 3 次，取最好的一次。", value=st.session_state["intro"], height=220, max_chars=3000)
 st.session_state["intro"] = intro
-if st.button("保存并评分", type="primary"):
+if st.button("提交并评分", type="primary", disabled=st.session_state["intro_tries"] >= 3):
     if len(intro.strip()) < 30:
         st.warning("至少 30 字")
     else:
@@ -233,7 +234,9 @@ if st.button("保存并评分", type="primary"):
                 total = min(85, 45 + min(25, len(intro) // 20) + min(15, digits * 5))
                 out = {"dimensions": {r["key"]: {"score": round(total / 4), "reason": "本地规则评分"} for r in DATA["introRubric"]},
                        "total": total, "highlights": [], "risks": [], "suggestions": [], "mode": "local"}
-            st.session_state["intro_score"] = out
+            st.session_state["intro_tries"] += 1
+            if not st.session_state["intro_score"] or out["total"] > st.session_state["intro_score"]["total"]:
+                st.session_state["intro_score"] = out
         except Exception as exc:
             st.error(f"评分失败：{exc}")
 
@@ -283,7 +286,7 @@ for msg in st.session_state["chat"]:
         st.write(msg["content"])
 
 asked = sum(1 for x in st.session_state["chat"] if x["role"] == "assistant")
-answer = st.chat_input("输入你的回答…", disabled=asked >= rounds)
+answer = st.chat_input("输入你的回答…", disabled=sum(1 for x in st.session_state["chat"] if x["role"] == "user") >= rounds)
 if answer:
     st.session_state["chat"].append({"role": "user", "content": answer})
     try:
@@ -383,15 +386,15 @@ if report:
     st.markdown("**AI 面试逐轮**")
     for i, x in enumerate(s["chat"]["perQuestion"]):
         bar(f"第 {i + 1} 轮", x["score"] * 4)
-    st.caption("页面只展示分数；详细分析加密后发送给团队。")
+    st.caption("页面只展示分数；完整分析会随邮件发送给团队。")
+    st.markdown("**面试完成，请把结果发送给团队：未发送将无法进入后续筛选，可能失去这次机会。**")
     pkg = st.session_state["pkg"]
-    st.code(json.dumps(pkg, ensure_ascii=False), language="json")
     col1, col2 = st.columns(2)
-    if col1.button("发送加密分析到团队邮箱"):
+    if col1.button("发送邮件给团队", type="primary"):
         try:
             st.success(send_email(pkg, report["candidate"]["name"], s["total"]))
         except Exception as exc:
             st.error(f"发送失败：{exc}")
-    col2.download_button("下载加密文件", data=json.dumps(pkg, ensure_ascii=False).encode(), file_name="菌护禾-加密分析.enc.json", mime="application/json")
+    col2.download_button("下载邮件内容文件", data=json.dumps(pkg, ensure_ascii=False).encode(), file_name="菌护禾-面试结果.json", mime="application/json")
 
 st.caption(DATA["disclaimer"])

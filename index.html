@@ -1,73 +1,59 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>菌护禾 · 团队招募评估</title>
-<meta name="description" content="菌护禾团队招募评估：5 道情境题、AI 真实多轮面试、自我介绍评分；分数展示给候选人，详细分析加密发送给团队。" />
+<title>金种子杯 · 菌护禾 · 团队招募</title>
+<meta name="description" content="湖南科技大学学生团队 · 金种子杯项目菌护禾的队友招募评估：项目介绍、5 道情境题、自我介绍、AI 面试。" />
 <link rel="stylesheet" href="assets/styles.css" />
 </head>
 <body>
 
 <header class="topbar">
   <div class="brand">
-    <span class="logo">菌</span>
     <div>
-      <h1>菌护禾 · 团队招募</h1>
-      <p class="sub">情境测评 · 自我介绍 · AI 真实面试 · 评分</p>
+      <h1>金种子杯</h1>
+      <p class="sub">菌护禾 · 团队招募 <span class="dot">·</span> 湖南科技大学</p>
     </div>
   </div>
-  <div class="topbar-right">
-    <button id="btn-settings" class="btn small ghost" type="button">AI 设置</button>
-  </div>
 </header>
-
-<section id="settings" class="panel settings hidden">
-  <div class="panel-head">
-    <h2>AI 设置</h2>
-    <button id="btn-settings-close" class="btn small ghost" type="button">收起</button>
-  </div>
-  <p class="hint">站点已预置 AI，可不用改；如需换 Key 或模型可在这里改，配置只存本机浏览器。</p>
-  <div class="grid-3">
-    <label>API Base URL
-      <input id="cfg-base" type="url" placeholder="https://api.deepseek.com" autocomplete="off" />
-    </label>
-    <label>模型名
-      <input id="cfg-model" type="text" placeholder="deepseek-flash" autocomplete="off" />
-    </label>
-    <label>API Key
-      <input id="cfg-key" type="password" placeholder="sk-..." autocomplete="off" />
-    </label>
-  </div>
-  <div class="row">
-    <button id="btn-settings-save" class="btn primary" type="button">保存</button>
-    <button id="btn-settings-clear" class="btn ghost" type="button">清除</button>
-    <span id="cfg-status" class="hint"></span>
-  </div>
-</section>
 
 <main>
   <nav class="stepper" aria-label="步骤">
     <ol>
-      <li data-step="1" class="active"><span>01</span>情境测评</li>
-      <li data-step="2"><span>02</span>自我介绍</li>
-      <li data-step="3"><span>03</span>AI 面试</li>
-      <li data-step="4"><span>04</span>评分</li>
+      <li data-step="1" class="active"><span>01</span>项目介绍</li>
+      <li data-step="2"><span>02</span>情境测评</li>
+      <li data-step="3"><span>03</span>自我介绍</li>
+      <li data-step="4"><span>04</span>AI 面试</li>
+      <li data-step="5"><span>05</span>评分</li>
     </ol>
   </nav>
 
-  <!-- Step 1 -->
+  <!-- Step 1 · 项目介绍 -->
   <section id="step1" class="step">
+    <div class="card">
+      <h2>项目介绍</h2>
+      <p class="hint" id="project-lead"></p>
+      <div id="project-intro"></div>
+      <div class="row between intro-actions">
+        <button id="btn-skip-intro" class="btn ghost" type="button">跳过</button>
+        <button id="btn-start-eval" class="btn primary" type="button">我已了解，开始测评</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 2 · 情境测评 -->
+  <section id="step2" class="step hidden">
     <div class="card team-card">
-      <span class="q-tag" id="team-track">现代农业与大健康产业 / 微生物农业</span>
-      <h2 id="team-name">菌护禾 · 团队招募</h2>
+      <span class="q-tag" id="team-track"></span>
+      <h2 id="team-name"></h2>
       <p class="hint" id="team-positioning"></p>
       <p class="hint" id="team-stage"></p>
       <p class="hint"><b id="team-hiring-note"></b></p>
     </div>
 
     <div class="card">
-      <h2>选择方向</h2>
+      <h2>想加入的方向</h2>
       <p class="hint">只分三个大方向；选完后 5 道题会自动适配该方向。</p>
       <div id="direction-cards" class="role-grid"></div>
     </div>
@@ -78,15 +64,17 @@
         <label>姓名 / 昵称
           <input id="cand-name" type="text" placeholder="例如：小李" autocomplete="off" />
         </label>
-        <label>方向
+        <label>想加入的方向
           <select id="cand-direction"></select>
         </label>
-        <label>相关经验
+        <label>年级 / 相关经验
           <select id="cand-exp">
-            <option value="0-1 年">0–1 年</option>
-            <option value="1-3 年">1–3 年</option>
-            <option value="3-5 年">3–5 年</option>
-            <option value="5 年以上">5 年以上</option>
+            <option value="大一 / 0-1 年">大一 / 0–1 年</option>
+            <option value="大二 / 0-1 年">大二 / 0–1 年</option>
+            <option value="大三 / 1-2 年">大三 / 1–2 年</option>
+            <option value="大四 / 2-3 年">大四 / 2–3 年</option>
+            <option value="研究生 / 2 年以上">研究生 / 2 年以上</option>
+            <option value="已毕业 / 3 年以上">已毕业 / 3 年以上</option>
           </select>
         </label>
       </div>
@@ -96,32 +84,33 @@
     <div id="mcq-list"></div>
 
     <div class="row end">
-      <button id="btn-to-step2" class="btn primary" type="button">下一步</button>
+      <button id="btn-to-step3" class="btn primary" type="button">下一步</button>
     </div>
   </section>
 
-  <!-- Step 2 -->
-  <section id="step2" class="step hidden">
+  <!-- Step 3 · 自我介绍 -->
+  <section id="step3" class="step hidden">
     <div class="card">
       <h2>自我介绍</h2>
-      <p class="hint">250–500 字：现状 → 做过什么（带数字）→ 结果 → 反思与下一步。AI 会按你的方向评分。</p>
-      <textarea id="intro-text" rows="12" maxlength="3000" placeholder="我是……目前在……做过……其中最有代表性的是……结果是……我学到了……接下来我想……"></textarea>
+      <p class="hint">不限结构，写你想让团队了解的内容就行。AI 会分析内容，最多可提交 3 次，取最好的一次。</p>
+      <textarea id="intro-text" rows="12" maxlength="3000" placeholder="想写什么就写什么：你的经历、做过的事、擅长什么、想加入的原因……"></textarea>
       <div class="row between">
         <span id="intro-count" class="hint">0 / 3000</span>
         <div class="row">
-          <button id="btn-score-intro" class="btn primary" type="button">保存并评分</button>
-          <button id="btn-to-step3" class="btn ghost" type="button">跳过</button>
+          <button id="btn-score-intro" class="btn primary" type="button">提交并评分</button>
+          <button id="btn-to-step4" class="btn ghost" type="button">跳过</button>
         </div>
       </div>
+      <p id="intro-tries" class="hint"></p>
       <div id="intro-result" class="result hidden"></div>
     </div>
   </section>
 
-  <!-- Step 3 -->
-  <section id="step3" class="step hidden">
+  <!-- Step 4 · AI 面试 -->
+  <section id="step4" class="step hidden">
     <div class="card">
-      <h2>AI 面试（真实对话）</h2>
-      <p class="hint">面试官会根据你的自我介绍和方向连续追问 4 轮；结束后由 AI 打分。请像真人面试一样作答。</p>
+      <h2>AI 面试</h2>
+      <p class="hint">AI 面试官会根据你的自我介绍和方向连续追问 4 轮，像聊天一样作答即可；结束后由 AI 打分。</p>
       <div class="row">
         <button id="btn-start-chat" class="btn primary" type="button">开始面试</button>
         <button id="btn-finish-chat" class="btn ghost" type="button" disabled>结束面试并评分</button>
@@ -136,32 +125,28 @@
     </div>
   </section>
 
-  <!-- Step 4 -->
-  <section id="step4" class="step hidden">
+  <!-- Step 5 · 评分 -->
+  <section id="step5" class="step hidden">
     <div class="card">
       <h2>评分</h2>
       <div id="report"></div>
     </div>
 
     <div class="card" id="send-card">
-      <h2>加密分析发送给团队</h2>
+      <h2>面试完成</h2>
       <p class="hint">
-        页面只展示分数；详细分析（自我介绍点评、每轮面试点评、优势/风险/建议、原始回答）会加密后发到
-        <b>2160634966@qq.com</b> 与 <b>2715240991@qq.com</b>。
+        请把本次面试结果发送给团队：点击下方按钮会打开你的邮箱，收件人已填好（2160634966@qq.com 与 2715240991@qq.com）。
+        <b>未发送将无法进入后续筛选，可能会失去这次机会。</b>
       </p>
       <div class="row">
-        <button id="btn-mail" class="btn primary" type="button">打开邮件客户端</button>
-        <button id="btn-eml" class="btn ghost" type="button">下载 .eml 邮件</button>
-        <button id="btn-copy-mail" class="btn ghost" type="button">复制密文</button>
+        <button id="btn-mail" class="btn primary" type="button">发送邮件给团队</button>
+        <button id="btn-eml" class="btn ghost small" type="button">没有邮件客户端？下载邮件文件</button>
+        <button id="btn-copy-mail" class="btn ghost small" type="button">复制邮件内容</button>
       </div>
       <p id="mail-status" class="hint"></p>
-      <textarea id="mail-preview" rows="8" readonly placeholder="加密内容预览"></textarea>
-      <details class="adv">
-        <summary>加密内容预览 / 校验</summary>
-        <p class="hint">加密在浏览器内完成：gzip → AES-256-GCM → RSA-OAEP。团队用 /decrypt.html 与私钥解密。</p>
-        <textarea id="enc-output" rows="8" readonly></textarea>
-        <p id="enc-status" class="hint"></p>
-      </details>
+      <textarea id="mail-preview" class="hidden"></textarea>
+      <textarea id="enc-output" class="hidden"></textarea>
+      <p id="enc-status" class="hidden"></p>
     </div>
 
     <div class="row end">
@@ -173,11 +158,9 @@
 </main>
 
 <footer class="footer">
-  <span>菌护禾 · 招募评估</span>
+  <span>湖南科技大学 · 金种子杯</span>
   <span>·</span>
-  <a href="decrypt.html">解密工具</a>
-  <span>·</span>
-  <a href="README.md">说明</a>
+  <span>菌护禾团队</span>
 </footer>
 
 <div id="toast" class="toast hidden" role="status"></div>
