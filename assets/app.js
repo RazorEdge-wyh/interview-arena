@@ -812,24 +812,20 @@ ${JSON.stringify(pkg)}
         btn.disabled = false; btn.textContent = '发送邮件给团队';
       }
     }
-    // 无后端：复制完整密文 + 打开短邮件
+    // 无后端：复制完整密文 + 打开短邮件（用 location.href，兼容性最好）
     let copied = false;
     try { copied = copyTextFallback(state.fullCode); } catch (_) {}
     if (!copied) {
       try { navigator.clipboard.writeText(state.fullCode); copied = true; } catch (_) {}
     }
+    const debugMail = new URLSearchParams(location.search).get('debug') === '1';
+    $('#mail-status').textContent = (copied ? '完整加密结果已复制到剪贴板。' : '')
+      + '正在打开邮件应用（若没弹出，说明本机没有设置默认邮件程序，请用下方「复制加密结果」或「下载加密结果文件」）。'
+      + (debugMail ? `（mailto 长度 ${state.mailtoUrl.length}）` : '');
     try {
-      const a = document.createElement('a');
-      a.href = state.mailtoUrl;
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      const debugMail = new URLSearchParams(location.search).get('debug') === '1';
-      $('#mail-status').textContent = '已打开邮件：收件人已填好；完整加密结果已复制到剪贴板，请在邮件正文按 Ctrl+V 粘贴后点发送。'
-        + (debugMail ? `（mailto 长度 ${state.mailtoUrl.length}，复制 ${state.fullCode.length} 字符）` : '');
+      window.location.href = state.mailtoUrl;
     } catch (err) {
-      toast('打开邮件失败：' + err.message + '；请用「下载完整邮件文件」', 5000, 'err');
+      toast('打开邮件失败：' + err.message + '；请用「复制加密结果」或「下载加密结果文件」', 5000, 'err');
     }
   }
 
