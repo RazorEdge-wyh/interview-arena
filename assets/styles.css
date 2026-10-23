@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --bg: #f6f7f4;
   --ink: #1c2620;
   --ink-soft: #4a5a52;
@@ -160,6 +160,22 @@ ul.clean li { margin: 4px 0; font-size: 14px; }
 .report-block { margin-top: 16px; }
 .report-block h3 { font-size: 15px; }
 code { background: #f2f5f2; padding: 1px 6px; border-radius: 6px; font-size: 13px; }
+
+/* ---------- mail / optional encryption ---------- */
+.check {
+  display: flex; align-items: flex-start; gap: 8px; font-size: 13.5px; color: var(--ink);
+  margin: 10px 0 12px; cursor: pointer;
+}
+.check input { width: auto; margin-top: 3px; accent-color: var(--brand); }
+details.adv {
+  margin-top: 16px; border-top: 1px dashed var(--line); padding-top: 12px;
+}
+details.adv summary {
+  cursor: pointer; font-size: 13.5px; color: var(--brand-dark); user-select: none;
+}
+details.adv[open] summary { margin-bottom: 8px; }
+#mail-preview { background: #fbfcfb; }
+#mail-status { margin: 8px 0 10px; }
 
 /* ---------- misc ---------- */
 .settings { border-color: var(--brand); }

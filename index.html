@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8" />
@@ -142,23 +142,39 @@
     </div>
 
     <div class="card" id="send-card">
-      <h2>加密发送给面试官</h2>
+      <h2>发送给面试官</h2>
       <p class="hint">
-        分数与回答会先在浏览器内压缩，再用 <strong>RSA-OAEP 公钥 + AES-256-GCM</strong> 混合加密；
-        只有持有私钥的面试官能解密。页面不会把明文发送到任何服务器。
+        收件邮箱固定为 <strong>2160634966@qq.com</strong>。点「打开邮件客户端」会跳转到你本机的邮件应用，
+        正文已自动写好：<strong>分数 + 你的自我介绍 + 4 个追问与回答 + AI 点评</strong>，确认后点发送即可。
+        若内容太长被截断，改用「下载 .eml」——双击该文件同样会打开邮件客户端且内容完整。
       </p>
+      <label class="check">
+        <input type="checkbox" id="mail-include-enc" checked />
+        邮件正文末尾附带加密密文（面试官可校验内容未被篡改；不需要可取消）
+      </label>
       <div class="row">
-        <button id="btn-encrypt" class="btn primary" type="button">生成加密报告</button>
-        <button id="btn-copy" class="btn ghost" type="button" disabled>复制加密内容</button>
-        <button id="btn-download" class="btn ghost" type="button" disabled>下载 .enc 文件</button>
-        <button id="btn-mail" class="btn ghost" type="button" disabled>用邮件发送</button>
+        <button id="btn-mail" class="btn primary" type="button">打开邮件客户端（跳转）</button>
+        <button id="btn-eml" class="btn ghost" type="button">下载 .eml 邮件文件</button>
+        <button id="btn-copy-mail" class="btn ghost" type="button">复制邮件正文</button>
       </div>
-      <p id="enc-status" class="hint"></p>
-      <textarea id="enc-output" rows="8" readonly placeholder="加密结果会显示在这里（可直接粘贴到微信/邮件）"></textarea>
-      <p class="hint">
-        收件邮箱：<code>2160634966@qq.com</code>。邮件客户端打开后请确认收件人与内容再发送；
-        若内容过长，请使用「复制加密内容」或下载附件后手动发送。
-      </p>
+      <p id="mail-status" class="hint"></p>
+      <textarea id="mail-preview" rows="14" readonly placeholder="邮件正文预览：分数与你的回答会出现在这里"></textarea>
+
+      <details class="adv">
+        <summary>可选：只发送加密报告（面试官用私钥解密）</summary>
+        <p class="hint">
+          分数与回答会先在浏览器内压缩，再用 <strong>RSA-OAEP 公钥 + AES-256-GCM</strong> 混合加密；
+          只有持有私钥的面试官能解密。适合不希望邮件正文出现原文的场景。
+        </p>
+        <div class="row">
+          <button id="btn-encrypt" class="btn ghost" type="button">生成加密报告</button>
+          <button id="btn-copy" class="btn ghost" type="button" disabled>复制加密内容</button>
+          <button id="btn-download" class="btn ghost" type="button" disabled>下载 .enc 文件</button>
+          <button id="btn-mail-enc" class="btn ghost" type="button" disabled>发加密邮件</button>
+        </div>
+        <p id="enc-status" class="hint"></p>
+        <textarea id="enc-output" rows="8" readonly placeholder="加密结果会显示在这里"></textarea>
+      </details>
     </div>
 
     <div class="row end">

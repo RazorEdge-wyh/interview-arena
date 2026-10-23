@@ -450,6 +450,7 @@ ${state.qa.map((x, i) => `【追问${i + 1}】${x.q}\n【回答】${x.answer}`).
       ${introBlock}
       ${qaBlock}
       <p class="note">评分口径：选择题 ${Math.round(state.data.weights.mcq * 100)}% + 自我介绍 ${Math.round(state.data.weights.intro * 100)}% + AI 追问 ${Math.round(state.data.weights.qa * 100)}%（缺失模块自动归一化）。AI 评分存在波动，仅供面试准备参考。</p>`;
+    refreshMailPreview();
   }
 
   /* ---------------- 加密 ---------------- */
@@ -561,6 +562,169 @@ ${state.qa.map((x, i) => `【追问${i + 1}】${x.q}\n【回答】${x.answer}`).
     window.location.href = url;
   }
 
+  /* ---------------- 跳转邮件：正文含分数与候选人内容 ---------------- */
+  function utf8B64(str) {
+    const bytes = new TextEncoder().encode(str);
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+      bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    }
+    return btoa(bin);
+  }
+
+  function buildPlainReport(report) {
+    const lines = [];
+    const when = new Date(report.createdAt).toLocaleString('zh-CN');
+    lines.push('Interview Arena · 面试评估报告');
+    lines.push(`生成时间：${when}`);
+    lines.push(`候选人：${report.name} ｜ 应聘方向：${report.role} ｜ 经验：${report.exp}`);
+    lines.push('');
+    lines.push(`一、综合评分：${fmt(report.total, 1)} / 100（${report.verdict.text}）`);
+    report.parts.forEach((p) => {
+      const w = Math.round((p.weight / report.weightsUsed) * 100);
+      lines.push(`- ${p.name}：${fmt(p.score, 1)}（权重 ${w}%）`);
+    });
+    lines.push('');
+    lines.push('二、四维画像（来自 4 道情境选择题）');
+    report.dims.forEach((d) => {
+      lines.push(`- ${d.label}（${d.type === 'ability' ? '能力' : '性格'}）：${fmt(d.value, 1)}`);
+    });
+    lines.push('');
+    lines.push('三、自我介绍原文');
+    lines.push(state.intro || '（未提交）');
+    lines.push('');
+    lines.push('四、自我介绍评分与点评');
+    if (report.intro) {
+      (state.data.introRubric || []).forEach((r) => {
+        const dim = report.intro.dimensions?.[r.key] || {};
+        lines.push(`- ${r.label}：${fmt(dim.score ?? 0)} / 25 ｜ ${dim.reason || ''}`);
+      });
+      lines.push(`小计：${fmt(report.intro.total)} / 100`);
+      (report.intro.highlights || []).forEach((x) => lines.push(`✅ ${x}`));
+      (report.intro.risks || []).forEach((x) => lines.push(`⚠️ ${x}`));
+      (report.intro.suggestions || []).forEach((x) => lines.push(`→ ${x}`));
+    } else {
+      lines.push('（未提交自我介绍）');
+    }
+    lines.push('');
+    lines.push('五、AI 追问与回答');
+    if (report.qa && state.qa.length) {
+      state.qa.forEach((item, i) => {
+        const s = report.qa.scores?.[i] || {};
+        lines.push(`【追问 ${i + 1}】${item.q}`);
+        lines.push(`【我的回答】${item.answer || '（未回答）'}`);
+        lines.push(`【评分】${fmt((Number(s.score) || 0) * 4)} / 100 ｜ ${s.reason || ''}`);
+        lines.push('');
+      });
+      lines.push(`问答小计：${fmt(report.qa.overall)} / 100`);
+      (report.qa.suggestions || []).forEach((x) => lines.push(`→ ${x}`));
+    } else {
+      lines.push('（未完成 AI 追问）');
+    }
+    lines.push('');
+    lines.push('六、面试官可追问的方向');
+    report.weak.forEach((d) => {
+      lines.push(`- ${d.label}（${fmt(d.value)}）：请对方举一个最近的具体例子，追问"你具体做了什么、结果如何、如果重来会改什么"。`);
+    });
+    lines.push('');
+    lines.push('七、说明');
+    lines.push(state.data.disclaimer || '评分仅供参考，不构成录用或淘汰依据。');
+    return lines.join('\n');
+  }
+
+  async function buildMailBody(includeEnc) {
+    const report = state.report || buildReport();
+    let body = buildPlainReport(report);
+    if (includeEnc) {
+      try {
+        if (!state.encPackage) state.encPackage = await encryptReport(report);
+        body += '\n\n八、加密校验（可选）\n以下密文由本页用 RSA 公钥加密，面试官可用私钥解密核对内容未被篡改：\n'
+          + '===BEGIN ENCRYPTED REPORT===\n' + JSON.stringify(state.encPackage) + '\n===END ENCRYPTED REPORT===';
+      } catch (err) {
+        body += `\n\n（加密校验生成失败：${err.message}，已忽略）`;
+      }
+    }
+    return body;
+  }
+
+  function mailSubject() {
+    const name = ($('#cand-name').value || '候选人').trim();
+    const total = state.report ? fmt(state.report.total, 1) : '';
+    return `【Interview Arena】${name} 的面试评估报告${total ? `（${total} 分）` : ''}`;
+  }
+
+  async function refreshMailPreview() {
+    if (!state.report) return;
+    const includeEnc = $('#mail-include-enc').checked;
+    const body = buildPlainReport(state.report);
+    const note = includeEnc ? '\n\n（发送时会自动在末尾附带加密密文）' : '';
+    $('#mail-preview').value = body + note;
+    const chars = body.length;
+    $('#mail-status').textContent = `正文约 ${chars} 字${includeEnc ? ' + 加密密文' : ''}；`
+      + (chars > 1600 ? '较长，建议用「下载 .eml」避免邮件客户端截断。' : '可直接跳转邮件客户端。');
+  }
+
+  async function openMail() {
+    if (!state.report) { toast('请先生成评估报告'); return; }
+    const btn = $('#btn-mail');
+    btn.disabled = true; btn.textContent = '准备邮件…';
+    try {
+      const body = await buildMailBody($('#mail-include-enc').checked);
+      const url = `mailto:${MAIL_TO}?subject=${encodeURIComponent(mailSubject())}&body=${encodeURIComponent(body)}`;
+      if (url.length > 2000) toast('正文较长：若邮件客户端截断，请改用「下载 .eml」');
+      window.location.href = url;
+      $('#mail-status').textContent = `已打开邮件客户端（收件人 ${MAIL_TO}）。若没有反应，请用「下载 .eml」。`;
+    } catch (err) {
+      toast(`准备邮件失败：${err.message}`);
+    } finally {
+      btn.disabled = false; btn.textContent = '打开邮件客户端（跳转）';
+    }
+  }
+
+  async function downloadEml() {
+    if (!state.report) { toast('请先生成评估报告'); return; }
+    const btn = $('#btn-eml');
+    btn.disabled = true; btn.textContent = '生成中…';
+    try {
+      const body = await buildMailBody($('#mail-include-enc').checked);
+      const subjectEnc = `=?UTF-8?B?${utf8B64(mailSubject())}?=`;
+      const bodyB64 = utf8B64(body).replace(/(.{76})/g, '$1\r\n');
+      const eml = [
+        `To: ${MAIL_TO}`,
+        `Subject: ${subjectEnc}`,
+        'MIME-Version: 1.0',
+        'Content-Type: text/plain; charset=UTF-8',
+        'Content-Transfer-Encoding: base64',
+        '',
+        bodyB64,
+      ].join('\r\n');
+      const blob = new Blob([eml], { type: 'message/rfc822' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `Interview-Arena-${($('#cand-name').value || '候选人').trim()}-${Date.now()}.eml`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+      $('#mail-status').textContent = '已下载 .eml：双击用邮件客户端打开，确认后点发送。';
+    } catch (err) {
+      toast(`生成 .eml 失败：${err.message}`);
+    } finally {
+      btn.disabled = false; btn.textContent = '下载 .eml 邮件文件';
+    }
+  }
+
+  async function copyMailBody() {
+    if (!state.report) { toast('请先生成评估报告'); return; }
+    try {
+      const body = await buildMailBody(false);
+      await navigator.clipboard.writeText(`收件人：${MAIL_TO}\n主题：${mailSubject()}\n\n${body}`);
+      toast('已复制：收件人 + 主题 + 正文');
+    } catch (_) {
+      $('#mail-preview').select();
+      document.execCommand('copy');
+      toast('已复制（兼容模式）');
+    }
+  }
+
   /* ---------------- 步骤控制 ---------------- */
   function goStep(n) {
     if (n === 2) {
@@ -595,7 +759,8 @@ ${state.qa.map((x, i) => `【追问${i + 1}】${x.q}\n【回答】${x.answer}`).
     $('#qa-list').innerHTML = ''; $('#qa-result').classList.add('hidden');
     $('#qa-submit-row').classList.add('hidden');
     $('#report').innerHTML = ''; $('#enc-output').value = '';
-    ['#btn-copy', '#btn-download', '#btn-mail'].forEach((s) => { $(s).disabled = true; });
+    $('#mail-preview').value = ''; $('#mail-status').textContent = '';
+    ['#btn-copy', '#btn-download', '#btn-mail-enc'].forEach((s) => { $(s).disabled = true; });
     renderMCQ();
     goStep(1);
     toast('已重置');
@@ -671,11 +836,18 @@ ${state.qa.map((x, i) => `【追问${i + 1}】${x.q}\n【回答】${x.answer}`).
       }
     });
 
-    // 报告页
+    // 报告页：跳转邮件（正文含分数与回答）
+    $('#btn-mail').addEventListener('click', openMail);
+    $('#btn-eml').addEventListener('click', downloadEml);
+    $('#btn-copy-mail').addEventListener('click', copyMailBody);
+    $('#mail-include-enc').addEventListener('change', () => { if (state.report) refreshMailPreview(); });
+
+    // 可选：只发送加密报告
     $('#btn-encrypt').addEventListener('click', onEncrypt);
     $('#btn-copy').addEventListener('click', copyEnc);
     $('#btn-download').addEventListener('click', downloadEnc);
-    $('#btn-mail').addEventListener('click', mailEnc);
+    $('#btn-mail-enc').addEventListener('click', mailEnc);
+
     $('#btn-restart').addEventListener('click', resetAll);
 
     // 防误关
