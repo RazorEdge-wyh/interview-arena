@@ -706,7 +706,7 @@ ${JSON.stringify(pkg)}
       document.body.appendChild(a);
       a.click();
       a.remove();
-      $('#mail-status').textContent = '已调用邮件应用：收件人 3 个、主题和内容都填好了，点发送即可。';
+      $('#mail-status').textContent = '已调用邮件应用：收件人、主题、内容都填好了，点发送即可。正文里那段很长的乱码是加密后的结果，属正常，不用删改。';
     } catch (err) {
       toast('打开邮件失败：' + err.message, 5000, 'err');
     }
@@ -727,7 +727,7 @@ ${JSON.stringify(pkg)}
       a.download = `菌护禾-面试结果-${($('#cand-name').value || '同学').trim()}-${Date.now()}.eml`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 3000);
-      $('#mail-status').textContent = '已生成完整邮件文件：双击打开，收件人已填好，点发送即可。';
+      $('#mail-status').textContent = '已生成完整邮件文件：双击打开，收件人已填好，点发送即可。正文里那段很长的乱码是加密后的结果，属正常。';
       toast('已生成完整邮件文件', 4200, 'ok');
     } catch (err) {
       toast('生成失败：' + err.message, 5000, 'err');
