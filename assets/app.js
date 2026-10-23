@@ -97,14 +97,21 @@
     const url = s.apiBase + '/api/send';
     const headers = { 'Content-Type': 'application/json' };
     if (s.apiSecret) headers['x-api-secret'] = s.apiSecret;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ subject, text }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP ' + res.status));
-    return data;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 25000);
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ subject, text }),
+        signal: ctrl.signal,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP ' + res.status));
+      return data;
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   /* ---------------- 数据 ---------------- */
@@ -808,7 +815,10 @@ ${JSON.stringify(pkg)}
         return;
       } catch (err) {
         console.warn('backend send failed', err);
-        toast('后端发送失败：' + (err.message || err) + '，改用邮件/复制方式', 6000, 'err');
+        const msg = (err && (err.name === 'AbortError' || err.name === 'TimeoutError'))
+          ? '发送超时（网络较慢），已改为手动方式'
+          : ('后端发送失败：' + (err.message || err) + '，已改为手动方式');
+        toast(msg, 6000, 'err');
         btn.disabled = false; btn.textContent = '发送邮件给团队';
       }
     }
