@@ -801,26 +801,38 @@ ${JSON.stringify(pkg)}
       toast('正在准备邮件，请稍等 1 秒再点', 4200, 'err');
       return;
     }
-    // 有后端：直接由后端发信，一步到位
+    // 有后端：直接由后端发信，一步到位（最多等 20 秒，超时自动改手动）
     if (backendReady()) {
       const btn = $('#btn-mail');
       btn.disabled = true; btn.textContent = '正在发送…';
+      $('#mail-status').textContent = '正在通过团队服务器发送，最多等待 20 秒…';
+      let sent = false;
       try {
         const text = '金种子杯 · 菌护禾 团队招募\n\n' + state.fullCode;
-        await backendSend(mailSubject(), text);
+        await Promise.race([
+          backendSend(mailSubject(), text),
+          new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 20000)),
+        ]);
+        sent = true;
         $('#mail-status').textContent = '已发送到团队邮箱（2160634966 / 2715240991 / 355594812）。';
         toast('已发送到团队邮箱', 5000, 'ok');
         btn.textContent = '已发送';
         btn.disabled = true;
-        return;
       } catch (err) {
         console.warn('backend send failed', err);
-        const msg = (err && (err.name === 'AbortError' || err.name === 'TimeoutError'))
-          ? '发送超时（网络较慢），已改为手动方式'
+        const msg = (err && (err.message === 'TIMEOUT' || err.name === 'AbortError' || err.name === 'TimeoutError'))
+          ? '发送超时，已改为手动方式，请用下面的按钮'
           : ('后端发送失败：' + (err.message || err) + '，已改为手动方式');
         toast(msg, 6000, 'err');
-        btn.disabled = false; btn.textContent = '发送邮件给团队';
+        $('#mail-status').textContent = '后端没有发送成功，已切换为手动方式，请用下面的按钮。';
+        const fb = $('#fallback-box');
+        if (fb) fb.classList.remove('hidden');
+        const fbStatus = $('#fallback-status');
+        if (fbStatus) fbStatus.textContent = '请点「复制加密结果」，粘到自己的邮箱发给上面三个邮箱；不行再加微信 w13908105242（备注来意）。';
+      } finally {
+        if (!sent) { btn.disabled = false; btn.textContent = '发送邮件给团队'; }
       }
+      if (sent) return;
     }
     // 无后端：复制完整密文 + 打开短邮件（用 location.href，兼容性最好）
     let copied = false;
