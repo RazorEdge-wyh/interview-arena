@@ -95,7 +95,41 @@
     if (!items || !items.length) return '<p class="hint">（无）</p>';
     return `<ul class="clean">${items.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`;
   }
+  function expandCompact(a) {
+    const [name, contact, direction, exp, createdAt, total, baseTotal, gradeBonus, verdict,
+      parts, dims, fit, chatOverall, chatMode, chatScores, chatStrengths, chatRisks, chatSugg, chatVerdict,
+      introTotal, introMode, introDims, introHighlights, introRisks, introSugg,
+      introText, mcq, transcript] = a;
+    return {
+      mode: 'full',
+      candidate: { name, contact, direction, exp },
+      createdAt,
+      scores: {
+        total, baseTotal, gradeBonus, verdict,
+        parts: (parts || []).map(([n, sc, w]) => ({ name: n, score: sc, weight: w })),
+        dims: (dims || []).map(([label, type, value]) => ({ label, type, value })),
+        fit: (fit || []).map(([n, sc]) => ({ name: n, score: sc })),
+        chat: (chatOverall === null || chatOverall === undefined) ? null : {
+          overall: chatOverall, mode: chatMode,
+          perQuestion: (chatScores || []).map(([round, score, comment]) => ({ round, score, comment })),
+        },
+      },
+      analysis: {
+        intro: (introTotal === null || introTotal === undefined) ? null : {
+          total: introTotal, mode: introMode,
+          dimensions: Object.fromEntries((introDims || []).map(([k, sc, reason]) => [k, { score: sc, reason }])),
+          highlights: introHighlights || [], risks: introRisks || [], suggestions: introSugg || [],
+        },
+        chat: { strengths: chatStrengths || [], risks: chatRisks || [], suggestions: chatSugg || [], verdict: chatVerdict || '' },
+      },
+      introText,
+      mcqAnswers: (mcq || []).map(([q, answer]) => ({ q, answer })),
+      transcript: (transcript || []).map(([role, content]) => ({ role, content })),
+    };
+  }
+
   function renderV2(data) {
+    if (Array.isArray(data)) data = expandCompact(data);
     const c = data.candidate || {};
     if (data.mode === 'brief' || (!data.scores && !data.parts)) {
       $('#result').innerHTML = `

@@ -58,8 +58,9 @@
         <label>想加入的方向
           <select id="cand-direction"></select>
         </label>
-        <label>联系方式（手机号 / 微信）
-          <input id="cand-contact" type="text" placeholder="用于团队联系你，例如 138xxxx 或 微信号" autocomplete="off" />
+        <label>联系方式（手机号 / 微信）<span class="req">*必填</span>
+          <input id="cand-contact" type="text" required placeholder="必填：手机号或微信号，团队要通过它联系你" autocomplete="off" />
+          <span id="contact-hint" class="hint">必填项：不填无法进入下一步</span>
         </label>
         <label>年级 / 相关经验
           <select id="cand-exp">

@@ -39,6 +39,24 @@
   const fmt = (n, d = 0) => (Number(n) || 0).toFixed(d).replace(/\.0$/, '');
   const clamp = (n, a, b) => Math.min(b, Math.max(a, Number(n) || 0));
 
+  function requireContact(silent) {
+    const el = $('#cand-contact');
+    const v = el ? el.value.trim() : '';
+    if (v.length >= 5) {
+      if (el) el.style.borderColor = '';
+      const hint = $('#contact-hint');
+      if (hint) hint.textContent = '已填写：' + v;
+      return true;
+    }
+    if (!silent) {
+      if (el) { el.style.borderColor = '#a11212'; el.focus(); }
+      const hint = $('#contact-hint');
+      if (hint) hint.textContent = '必填：请填写手机号或微信号（至少 5 个字符）';
+      toast('请先填写联系方式（必填）', 4200, 'err');
+    }
+    return false;
+  }
+
   function toast(msg, ms = 4200, type = '') {
     const el = $('#toast');
     if (!el) return;
@@ -409,6 +427,7 @@ ${text}`;
 
   async function finishChat() {
     if (!state.chat.length) { toast('还没有开始面试', 4200, 'err'); return; }
+    if (!requireContact()) return;
     if (state.chatScored) { goStep(5); return; }
     const btn = $('#btn-finish-chat');
     btn.disabled = true;
@@ -584,6 +603,10 @@ ${text}`;
     for (let i = 0; i < arr.length; i += 0x8000) s += String.fromCharCode.apply(null, arr.subarray(i, i + 0x8000));
     return btoa(s);
   }
+  function b64url(bytes) {
+    return b64(bytes).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
+  }
+
   async function gzipBytes(bytes) {
     if (typeof CompressionStream === 'undefined') return bytes;
     const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'));
@@ -604,7 +627,7 @@ ${text}`;
     const iv = crypto.getRandomValues(new Uint8Array(12));
     const key = await deriveKey(password, salt);
     const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, compressed);
-    return { v: 2, alg: 'A256GCM+PBKDF2+gzip', mode: payload.mode || 'summary', to: payload.to, createdAt: payload.createdAt, salt: b64(salt), iv: b64(iv), data: b64(ct) };
+    return { v: 2, alg: 'A256GCM+PBKDF2+gzip', mode: payload.mode || 'summary', to: payload.to, createdAt: payload.createdAt, salt: b64url(salt), iv: b64url(iv), data: b64url(ct) };
   }
 
   function summaryPayload(report) {
@@ -674,16 +697,52 @@ ${JSON.stringify(pkg)}
 `;
   }
 
+  // 紧凑数组（字段位置固定），完整信息 + 更短的密文，保证 mailto 能带上全部内容
+  function compactPayload(r) {
+    return [
+      r.name, r.contact, r.direction, r.exp, r.createdAt,
+      Math.round(r.total * 10) / 10,
+      Math.round((r.baseTotal || r.total) * 10) / 10,
+      r.gradeBonus || 0, r.verdict,
+      r.parts.map((p) => [p.name, Math.round(p.score * 10) / 10, p.weight]),
+      r.dims.map((d) => [d.label, d.type, Math.round(d.value * 10) / 10]),
+      (r.fit || []).map((f) => [f.name, Math.round(f.score * 10) / 10]),
+      r.chat ? r.chat.overall : null,
+      r.chat ? r.chat.mode : null,
+      r.chat ? r.chat.scores.map((x) => [x.round, x.score, x.comment]) : [],
+      r.chat ? (r.chat.strengths || []) : [],
+      r.chat ? (r.chat.risks || []) : [],
+      r.chat ? (r.chat.suggestions || []) : [],
+      r.chat ? (r.chat.verdict || '') : '',
+      r.intro ? r.intro.total : null,
+      r.intro ? r.intro.mode : null,
+      r.intro && r.intro.dimensions ? Object.entries(r.intro.dimensions).map(([k, v]) => [k, v.score, v.reason]) : [],
+      r.intro ? (r.intro.highlights || []) : [],
+      r.intro ? (r.intro.risks || []) : [],
+      r.intro ? (r.intro.suggestions || []) : [],
+      r.introText || '',
+      r.mcqAnswers.map((x) => [x.q, x.answer]),
+      (r.transcript || []).map((m) => [m.role, m.content]),
+    ];
+  }
+
+  function mailBodyShort(pkg) {
+    return 'Jinzhongzi Cup / Junhuhe team recruitment result.\n'
+      + 'Team: paste this whole email into the result page to view (no key needed).\n'
+      + '===BEGIN ANALYSIS===\n'
+      + JSON.stringify(pkg)
+      + '\n===END ANALYSIS===\n';
+  }
+
   async function prepareReportAssets() {
     if (!state.report) return;
     try {
-      const pkg = await encryptPacket(fullPayload(state.report));
-      state.fullPkg = pkg;
-      state.summaryPkg = pkg;
-      const body = mailBody(pkg);
-      state.mailtoUrl = `mailto:${recipients()}?subject=${encodeURIComponent(mailSubject())}&body=${encodeURIComponent(body)}`;
+      state.fullPkg = await encryptPacket(fullPayload(state.report));
+      const compactPkg = await encryptPacket(compactPayload(state.report));
+      state.summaryPkg = compactPkg;
+      state.mailtoUrl = `mailto:${recipients()}?subject=${encodeURIComponent(mailSubject())}&body=${encodeURIComponent(mailBodyShort(compactPkg))}`;
       const st = $('#mail-status');
-      if (st && !st.textContent) st.textContent = '准备完成：点「发送邮件给团队」会生成完整加密邮件（收件人已填好）。';
+      if (st && !st.textContent) st.textContent = '准备完成：点「发送邮件给团队」会直接打开邮箱，收件人和完整内容都已填好。';
     } catch (err) {
       console.warn('prepare mail failed', err);
     }
@@ -693,13 +752,7 @@ ${JSON.stringify(pkg)}
     if (!state.report) { toast('请先完成评分', 4200, 'err'); return; }
     if (!state.mailtoUrl || !state.fullPkg) {
       prepareReportAssets();
-      toast('正在准备完整邮件，请稍等 1 秒再点', 4200, 'err');
-      return;
-    }
-    // 完整分析较长，mailto 放不下时自动改为下载完整邮件文件（内容不丢）
-    if (state.mailtoUrl.length > 1800) {
-      downloadEml();
-      $('#mail-status').textContent = '完整分析较长，已改为生成完整邮件文件：双击打开 → 点发送即可（收件人已填好）。';
+      toast('正在准备邮件，请稍等 1 秒再点', 4200, 'err');
       return;
     }
     try {
@@ -709,9 +762,11 @@ ${JSON.stringify(pkg)}
       document.body.appendChild(a);
       a.click();
       a.remove();
-      $('#mail-status').textContent = '已调用邮件应用：收件人、主题、内容都填好了，点发送即可。正文里那段很长的乱码是加密后的结果，属正常，不用删改。';
+      const debugMail = new URLSearchParams(location.search).get('debug') === '1';
+      $('#mail-status').textContent = '已打开邮件应用：收件人、主题、内容都填好了，点发送即可。正文里那段很长的乱码是加密后的结果，属正常，不用删改。'
+        + (debugMail ? `（mailto 长度 ${state.mailtoUrl.length}）` : '');
     } catch (err) {
-      toast('打开邮件失败：' + err.message, 5000, 'err');
+      toast('打开邮件失败：' + err.message + '；请用「下载完整邮件文件」', 5000, 'err');
     }
   }
 
@@ -941,14 +996,7 @@ ${JSON.stringify(pkg)}
 
     if ($('#btn-start-eval')) $('#btn-start-eval').addEventListener('click', () => { hideNotice($('#mcq-notice')); goStep(2); });
     if ($('#btn-to-step3')) $('#btn-to-step3').addEventListener('click', () => {
-      const contact = ($('#cand-contact') ? $('#cand-contact').value : '').trim();
-      if (contact.length < 5) {
-        $('#cand-contact').style.borderColor = '#a11212';
-        $('#cand-contact').focus();
-        toast('请先填写手机号或微信号（团队要联系你）', 4200, 'err');
-        return;
-      }
-      $('#cand-contact').style.borderColor = '';
+      if (!requireContact()) return;
       const qs = questionsFor(state.direction);
       const missing = qs.filter((q) => state.answers[q.id] === undefined);
       if (missing.length) {
@@ -985,6 +1033,7 @@ ${JSON.stringify(pkg)}
       }
     });
     $('#btn-to-step4').addEventListener('click', () => {
+      if (!requireContact()) return;
       state.intro = $('#intro-text').value;
       saveDraft();
       goStep(4);
