@@ -1,17 +1,19 @@
-﻿/* 菌护禾 · 加密面试分析解密（浏览器内）
- * 包格式：{"v":1,"alg":"RSA-OAEP-256+A256GCM+gzip","key":b64,"iv":b64,"data":b64}
- * 私钥：PKCS#8 PEM（tools/gen_keys.py 生成，无口令）
+/* 菌护禾 · 面试结果查看（浏览器内）
+ * 新版：口令 00000 + AES-GCM（PBKDF2），粘贴邮件即可，无需密钥。
+ * 旧版：RSA-OAEP + AES-GCM + 私钥（仅兼容 2026-10-23 之前的邮件）。
  */
 (() => {
   'use strict';
 
   const $ = (s, r = document) => r.querySelector(s);
-  const INTRO_LABELS = { structure: '结构清晰', specificity: '具体可验证', selfAwareness: '自我认知', roleFit: '方向契合' };
+  const INTRO_LABELS = { structure: '表达清楚', specificity: '具体可验证', selfAwareness: '自我认知', roleFit: '方向契合' };
+  const PBKDF2_ITER = 120000;
   let decrypted = null;
 
-  function toast(msg, ms = 2600) {
+  function toast(msg, ms = 3000, type = '') {
     const el = $('#toast');
     el.textContent = msg;
+    el.className = 'toast' + (type ? ' ' + type : '');
     el.classList.remove('hidden');
     clearTimeout(toast._t);
     toast._t = setTimeout(() => el.classList.add('hidden'), ms);
@@ -28,8 +30,8 @@
 
   function pemToDer(pem) {
     const m = pem.match(/-----BEGIN ([A-Z ]+)-----([\s\S]+?)-----END \1-----/);
-    if (!m) throw new Error('未识别到 PEM 私钥（需要 -----BEGIN PRIVATE KEY----- 格式）');
-    if (m[1].indexOf('ENCRYPTED') >= 0) throw new Error('暂不支持带口令的私钥，请使用无口令的 PKCS#8 私钥');
+    if (!m) throw new Error('旧版报告需要私钥：未识别到 PEM');
+    if (m[1].indexOf('ENCRYPTED') >= 0) throw new Error('暂不支持带口令的私钥');
     const body = m[2].replace(/\s+/g, '');
     const bin = atob(body);
     const der = new Uint8Array(bin.length);
@@ -43,29 +45,43 @@
     return new Uint8Array(await new Response(stream).arrayBuffer());
   }
 
-  async function decryptPackage(pkg, pem) {
-    if (!pkg || typeof pkg !== 'object') throw new Error('加密内容不是合法 JSON 对象');
-    if (pkg.alg !== 'RSA-OAEP-256+A256GCM+gzip') throw new Error(`不支持的算法：${pkg.alg || '（缺失）'}`);
-    for (const k of ['key', 'iv', 'data']) if (!pkg[k]) throw new Error(`加密内容缺少字段：${k}`);
+  function extractPackage(text) {
+    let t = String(text || '').trim();
+    if (!t) throw new Error('还没有粘贴内容');
+    const m = t.match(/===\s*BEGIN[^=]*===([\s\S]*?)===\s*END[^=]*===/);
+    if (m) t = m[1].trim();
+    try { return JSON.parse(t); } catch (_) {}
+    const start = t.indexOf('{');
+    if (start < 0) throw new Error('没有找到可查看的内容，请把整封邮件粘贴进来');
+    for (let end = t.lastIndexOf('}'); end > start; end = t.lastIndexOf('}', end - 1)) {
+      try { return JSON.parse(t.slice(start, end + 1)); } catch (_) {}
+    }
+    throw new Error('内容里没有找到完整数据');
+  }
+
+  async function decryptV2(pkg, password) {
+    const raw = new TextEncoder().encode(password);
+    const baseKey = await crypto.subtle.importKey('raw', raw, 'PBKDF2', false, ['deriveKey']);
+    const key = await crypto.subtle.deriveKey(
+      { name: 'PBKDF2', salt: b64d(pkg.salt), iterations: PBKDF2_ITER, hash: 'SHA-256' },
+      baseKey, { name: 'AES-GCM', length: 256 }, false, ['decrypt'],
+    );
+    const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64d(pkg.iv) }, key, b64d(pkg.data));
+    return JSON.parse(new TextDecoder().decode(await gunzip(new Uint8Array(plain))));
+  }
+
+  async function decryptV1(pkg, pem) {
     const der = pemToDer(pem);
     const rsaKey = await crypto.subtle.importKey('pkcs8', der, { name: 'RSA-OAEP', hash: 'SHA-256' }, false, ['decrypt']);
     const rawKey = await crypto.subtle.decrypt({ name: 'RSA-OAEP' }, rsaKey, b64d(pkg.key));
     const aesKey = await crypto.subtle.importKey('raw', rawKey, { name: 'AES-GCM' }, false, ['decrypt']);
     const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64d(pkg.iv) }, aesKey, b64d(pkg.data));
-    const bytes = await gunzip(new Uint8Array(plain));
-    return JSON.parse(new TextDecoder().decode(bytes));
+    return JSON.parse(new TextDecoder().decode(await gunzip(new Uint8Array(plain))));
   }
 
   /* ---------------- 渲染 ---------------- */
   const fmt = (n, d = 0) => (Number(n) || 0).toFixed(d).replace(/\.0$/, '');
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-
-  function verdictOf(total) {
-    if (total >= 80) return '强推荐进入下一轮';
-    if (total >= 65) return '推荐进入下一轮';
-    if (total >= 50) return '待定，建议补面';
-    return '暂不建议推进';
-  }
 
   function bar(label, value) {
     const v = Math.max(0, Math.min(100, Number(value) || 0));
@@ -75,146 +91,143 @@
       <span class="score-val">${fmt(v, 1)}</span>
     </div>`;
   }
-
   function ul(items) {
     if (!items || !items.length) return '<p class="hint">（无）</p>';
     return `<ul class="clean">${items.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`;
   }
+  function renderV2(data) {
+    const c = data.candidate || {};
+    if (data.mode === 'brief' || (!data.scores && !data.parts)) {
+      $('#result').innerHTML = `
+        <div class="big-score"><b>${fmt(data.total, 1)}</b><span>/ 100 综合评分</span>
+          <span class="verdict">${esc(data.verdict || '')}</span></div>
+        <p class="hint">${esc(c.name || '同学')} · ${esc(c.direction || '')} · ${esc(data.createdAt || '')}</p>
+        ${(data.parts || []).map((p) => bar(p.name, p.score)).join('')}
+        <p class="note">这是精简版结果；完整分析请让同学用「下载完整邮件文件」发送。</p>`;
+      $('#result-card').classList.remove('hidden');
+      return;
+    }
+    if (data.mode === 'summary') {
+      const a = data.analysis || {};
+      $('#result').innerHTML = `
+        <div class="big-score"><b>${fmt(data.total, 1)}</b><span>/ 100 综合评分</span>
+          <span class="verdict">${esc(data.verdict || '')}</span></div>
+        <p class="hint">${esc(c.name || '同学')} · ${esc(c.direction || '')} · ${esc(c.exp || '')} · ${esc(data.createdAt || '')}</p>
+        ${(data.parts || []).map((p) => bar(p.name, p.score)).join('')}
+        <h3>四维画像</h3>
+        <div class="dim-grid">${(data.dims || []).map((d) => bar(d.label, d.value)).join('')}</div>
+        ${data.chatScores && data.chatScores.length ? `<h3>AI 面试逐轮</h3><div class="dim-grid">${data.chatScores.map((x) => bar(`第 ${x.round} 轮`, x.score * 4)).join('')}</div>` : ''}
+        <h3>自我介绍：亮点 / 风险 / 建议</h3>
+        ${ul(((a.intro && a.intro.highlights) || []).map((x) => '✓ ' + x)
+          .concat(((a.intro && a.intro.risks) || []).map((x) => '! ' + x))
+          .concat(((a.intro && a.intro.suggestions) || []).map((x) => '→ ' + x)))}
+        <h3>AI 面试：优势 / 风险 / 建议</h3>
+        ${ul(((a.chat && a.chat.strengths) || []).map((x) => '✓ ' + x)
+          .concat(((a.chat && a.chat.risks) || []).map((x) => '! ' + x))
+          .concat(((a.chat && a.chat.suggestions) || []).map((x) => '→ ' + x)))}
+        ${a.chat && a.chat.verdict ? `<p><b>结论：</b>${esc(a.chat.verdict)}</p>` : ''}
+        ${data.introText ? `<h3>自我介绍（节选）</h3><p>${esc(data.introText)}</p>` : ''}
+        <p class="note">这是邮件精简版；含对话原文与完整点评的完整版，请让同学用「下载完整邮件文件」发送后粘贴查看。</p>`;
+      $('#result-card').classList.remove('hidden');
+      return;
+    }
+    renderFull(data);
+  }
 
-  function render(p) {
-    const s = p.scores || {};
-    const a = p.analysis || {};
+  function renderFull(data) {
+    const c = data.candidate || {};
+    const s = data.scores || {};
+    const a = data.analysis || {};
     const parts = (s.parts || []).map((x) => `<div class="stat"><b>${fmt(x.score, 1)}</b><span>${esc(x.name)} · 权重 ${fmt((Number(x.weight) || 0) * 100)}%</span></div>`).join('');
     const dims = (s.dims || []).map((d) => bar(`${d.label}（${d.type === 'ability' ? '能力' : '性格'}）`, d.value)).join('');
     const fit = (s.fit || []).slice(0, 3).map((f, i) => bar(`${i === 0 ? '最匹配' : '第 ' + (i + 1)} · ${f.name}`, f.score)).join('');
-    const chatScores = s.chat && s.chat.perQuestion ? s.chat.perQuestion.map((x) => bar(`第 ${x.round} 轮`, x.score * 4)).join('') : '';
-
     const intro = a.intro ? `
       <div class="report-block">
-        <h3>自我介绍分析（${fmt(a.intro.total)} / 100${a.intro.mode === 'ai' ? ' · AI' : ' · 本地规则'}）</h3>
+        <h3>自我介绍分析（${fmt(a.intro.total)} / 100${a.intro.mode === 'ai' ? ' · AI' : ''}）</h3>
         ${(a.intro.dimensions ? Object.keys(a.intro.dimensions) : []).map((k) => {
           const d = a.intro.dimensions[k] || {};
           return bar(INTRO_LABELS[k] || k, (Number(d.score) || 0) * 4) + `<p class="hint">${esc(d.reason || '')}</p>`;
         }).join('')}
         <h3>亮点 / 风险 / 建议</h3>
-        ${ul((a.intro.highlights || []).map((x) => '✓ ' + x)
-          .concat((a.intro.risks || []).map((x) => '! ' + x))
-          .concat((a.intro.suggestions || []).map((x) => '→ ' + x)))}
-      </div>` : '<p class="hint">未提交自我介绍</p>';
-
+        ${ul((a.intro.highlights || []).map((x) => '✓ ' + x).concat((a.intro.risks || []).map((x) => '! ' + x)).concat((a.intro.suggestions || []).map((x) => '→ ' + x)))}
+      </div>` : '';
     const chat = s.chat ? `
       <div class="report-block">
         <h3>AI 面试（${fmt(s.chat.overall)} / 100 · 逐轮点评）</h3>
-        ${(s.chat.perQuestion || []).map((x, i) => `
-          <p><b>第 ${x.round || i + 1} 轮 · ${fmt((Number(x.score) || 0) * 4)} 分</b><br><span class="hint">${esc(x.comment || '')}</span></p>`).join('')}
-        <h3>优势 / 风险 / 建议</h3>
-        ${ul((a.chat && a.chat.strengths || []).map((x) => '✓ ' + x)
-          .concat((a.chat && a.chat.risks || []).map((x) => '! ' + x))
-          .concat((a.chat && a.chat.suggestions || []).map((x) => '→ ' + x)))}
+        ${(s.chat.perQuestion || []).map((x, i) => `<p><b>第 ${x.round || i + 1} 轮 · ${fmt((Number(x.score) || 0) * 4)} 分</b><br><span class="hint">${esc(x.comment || '')}</span></p>`).join('')}
+        ${ul(((a.chat && a.chat.strengths) || []).map((x) => '✓ ' + x).concat(((a.chat && a.chat.risks) || []).map((x) => '! ' + x)).concat(((a.chat && a.chat.suggestions) || []).map((x) => '→ ' + x)))}
         ${a.chat && a.chat.verdict ? `<p><b>结论：</b>${esc(a.chat.verdict)}</p>` : ''}
-      </div>` : '<p class="hint">未完成 AI 面试</p>';
-
-    const transcript = (p.transcript || []).length ? `
-      <div class="report-block">
-        <h3>面试对话原文</h3>
-        ${(p.transcript || []).map((m) => `<p><b>${m.role === 'assistant' ? '面试官' : '候选人'}：</b>${esc(m.content)}</p>`).join('')}
       </div>` : '';
-
-    const mcq = (p.mcqAnswers || []).length ? `
-      <div class="report-block">
-        <h3>情境测评作答</h3>
-        ${(p.mcqAnswers || []).map((x, i) => `<p><b>Q${i + 1}：</b>${esc(x.q)}</p><p class="hint">${esc(x.answer)}</p>`).join('')}
+    const transcript = (data.transcript || []).length ? `
+      <div class="report-block"><h3>面试对话原文</h3>
+        ${(data.transcript || []).map((m) => `<p><b>${m.role === 'assistant' ? '面试官' : '同学'}：</b>${esc(m.content)}</p>`).join('')}
       </div>` : '';
-
-    const introText = p.introText ? `
-      <div class="report-block">
-        <h3>自我介绍原文</h3>
-        <p>${esc(p.introText)}</p>
+    const mcq = (data.mcqAnswers || []).length ? `
+      <div class="report-block"><h3>情境测评作答</h3>
+        ${(data.mcqAnswers || []).map((x, i) => `<p><b>Q${i + 1}：</b>${esc(x.q)}</p><p class="hint">${esc(x.answer)}</p>`).join('')}
       </div>` : '';
+    const introText = data.introText ? `<div class="report-block"><h3>自我介绍原文</h3><p>${esc(data.introText)}</p></div>` : '';
 
     $('#result').innerHTML = `
       <div class="big-score"><b>${fmt(s.total, 1)}</b><span>/ 100 综合评分</span>
-        <span class="verdict">${esc(s.verdict || verdictOf(Number(s.total) || 0))}</span></div>
-      <p class="hint">${esc((p.candidate && p.candidate.name) || '候选人')} · ${esc((p.candidate && p.candidate.direction) || '')}
-        · ${esc((p.candidate && p.candidate.exp) || '')} · 生成于 ${esc(p.createdAt || '')}</p>
+        <span class="verdict">${esc(s.verdict || '')}</span></div>
+      <p class="hint">${esc(c.name || '同学')} · ${esc(c.direction || '')} · ${esc(c.exp || '')} · ${esc(data.createdAt || '')}</p>
       <div class="split">${parts}</div>
-      <h3>四维画像</h3>
-      <div class="dim-grid">${dims}</div>
+      <h3>四维画像</h3><div class="dim-grid">${dims}</div>
       ${fit ? `<h3>方向契合</h3><div class="dim-grid">${fit}</div>` : ''}
-      ${chatScores ? `<h3>AI 面试逐轮分数</h3><div class="dim-grid">${chatScores}</div>` : ''}
       ${introText}${intro}${chat}${transcript}${mcq}
-      <p class="note">本分析由候选人端生成并加密；解密只说明内容未被篡改，不代表候选人信息已核实。</p>`;
+      <p class="note">本结果由同学端生成；查看只说明内容未损坏，不代表信息已核实。</p>`;
     $('#result-card').classList.remove('hidden');
   }
 
   /* ---------------- 交互 ---------------- */
-  function extractPackage(text) {
-    let t = String(text || '').trim();
-    if (!t) throw new Error('还没有粘贴内容');
-    // 1) 邮件里的标记块
-    const m = t.match(/===\s*BEGIN[^=]*===([\s\S]*?)===\s*END[^=]*===/);
-    if (m) t = m[1].trim();
-    // 2) 直接 JSON
-    try { return JSON.parse(t); } catch (_) {}
-    // 3) 从任意文本中抠出第一个完整 JSON 对象
-    const start = t.indexOf('{');
-    if (start < 0) throw new Error('没有找到可解密的内容，请把整封邮件粘贴进来');
-    for (let end = t.lastIndexOf('}'); end > start; end = t.lastIndexOf('}', end - 1)) {
-      try { return JSON.parse(t.slice(start, end + 1)); } catch (_) {}
-    }
-    throw new Error('内容里没有找到完整的加密数据');
-  }
-
-  function readFileAsText(file) {
-    return new Promise((resolve, reject) => {
-      const r = new FileReader();
-      r.onload = () => resolve(String(r.result || ''));
-      r.onerror = () => reject(new Error('文件读取失败'));
-      r.readAsText(file, 'utf-8');
-    });
-  }
-
   function bind() {
-    $('#btn-clear-pkg').addEventListener('click', () => { $('#pkg-text').value = '';  });
-    $('#btn-clear-key').addEventListener('click', () => { $('#key-text').value = '';  });
-
+    $('#btn-clear-pkg').addEventListener('click', () => { $('#pkg-text').value = ''; });
     $('#btn-decrypt').addEventListener('click', async (e) => {
       const btn = e.currentTarget;
-      btn.disabled = true; btn.textContent = '解密中…';
+      btn.disabled = true; btn.textContent = '处理中…';
       $('#status').textContent = '';
       try {
-        const rawPkg = $('#pkg-text').value.trim();
-        const pem = $('#key-text').value.trim();
-        if (!rawPkg) throw new Error('请先粘贴加密内容或选择 .enc.json 文件');
-        if (!pem) throw new Error('请先选择私钥文件或粘贴 PEM 私钥');
-        const pkg = extractPackage(rawPkg);
-        const data = await decryptPackage(pkg, pem);
+        const raw = $('#pkg-text').value.trim();
+        if (!raw) throw new Error('请先把邮件全文粘贴进来');
+        const pkg = extractPackage(raw);
+        let data;
+        if (pkg.alg && String(pkg.alg).indexOf('A256GCM') === 0) {
+          const pw = ($('#password').value || '00000').trim();
+          data = await decryptV2(pkg, pw);
+        } else if (pkg.alg && String(pkg.alg).indexOf('RSA-OAEP') === 0) {
+          const pem = $('#key-text').value.trim();
+          if (!pem) throw new Error('这是旧版报告：请在下方「旧版报告」里粘贴私钥');
+          data = await decryptV1(pkg, pem);
+        } else {
+          throw new Error('识别不到报告格式，请确认粘贴的是完整邮件');
+        }
         decrypted = data;
-        render(data);
-        $('#status').textContent = `解密成功：${(data.candidate && data.candidate.name) || '候选人'}，${fmt(data.scores && data.scores.total, 1)} / 100`;
+        renderV2(data);
+        $('#status').textContent = '已显示结果';
         $('#btn-print').disabled = false;
         $('#btn-save-json').disabled = false;
       } catch (err) {
         console.error(err);
-        $('#status').textContent = `解密失败：${err.message || err}`;
+        $('#status').textContent = '打开失败：' + (err.message || err);
         $('#result-card').classList.add('hidden');
         $('#btn-print').disabled = true;
         $('#btn-save-json').disabled = true;
+        toast('打开失败：' + (err.message || err), 5000, 'err');
       } finally {
-        btn.disabled = false; btn.textContent = '解密';
+        btn.disabled = false; btn.textContent = '查看结果';
       }
     });
-
     $('#btn-print').addEventListener('click', () => window.print());
     $('#btn-save-json').addEventListener('click', () => {
       if (!decrypted) return;
       const blob = new Blob([JSON.stringify(decrypted, null, 2)], { type: 'application/json' });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `菌护禾-分析-${(decrypted.candidate && decrypted.candidate.name) || 'candidate'}-${Date.now()}.json`;
+      a.download = `菌护禾-结果-${(decrypted.candidate && decrypted.candidate.name) || 'candidate'}-${Date.now()}.json`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-      toast('已下载明文 JSON');
+      toast('已下载明文 JSON', 3000, 'ok');
     });
   }
 

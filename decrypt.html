@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>菌护禾 · 面试结果查看</title>
-<meta name="description" content="粘贴邮件全文即可查看菌护禾面试结果（团队内部使用）。" />
+<meta name="description" content="粘贴邮件全文即可查看菌护禾面试结果（团队内部使用，无需密钥）。" />
 <link rel="stylesheet" href="assets/styles.css" />
 </head>
 <body>
@@ -22,40 +22,40 @@
 </header>
 
 <main>
-  <p class="hint">把同学发来的邮件全文直接粘贴到下面，再粘贴你的私钥，点「解密」即可。不需要选择文件。</p>
+  <p class="hint">把同学发来的邮件全文直接粘贴到下面，点「查看结果」即可，不需要密钥。</p>
 
   <section class="card">
     <h2>1. 粘贴邮件全文</h2>
-    <textarea id="pkg-text" rows="10" placeholder="把整封邮件（含 ===== 前后所有文字）粘贴到这里即可，系统会自动找到加密内容。"></textarea>
+    <textarea id="pkg-text" rows="10" placeholder="把整封邮件（包括 ===BEGIN ANALYSIS=== 前后所有文字）粘贴到这里。"></textarea>
     <div class="row">
       <button id="btn-clear-pkg" class="btn small ghost" type="button">清空</button>
     </div>
   </section>
 
   <section class="card">
-    <h2>2. 粘贴私钥</h2>
-    <textarea id="key-text" rows="6" placeholder="-----BEGIN PRIVATE KEY-----&#10;…&#10;-----END PRIVATE KEY-----"></textarea>
     <div class="row">
-      <button id="btn-clear-key" class="btn small ghost" type="button">清空</button>
-    </div>
-    <p class="hint">私钥只在本机浏览器使用，不上传、不保存。</p>
-  </section>
-
-  <section class="card">
-    <div class="row">
-      <button id="btn-decrypt" class="btn primary" type="button">解密</button>
+      <label style="max-width:220px">口令（默认 00000）
+        <input id="password" type="text" value="00000" autocomplete="off" />
+      </label>
+      <button id="btn-decrypt" class="btn primary" type="button">查看结果</button>
       <button id="btn-print" class="btn ghost" type="button" disabled>打印 / 存 PDF</button>
       <button id="btn-save-json" class="btn ghost" type="button" disabled>下载明文 JSON</button>
     </div>
     <p id="status" class="hint"></p>
   </section>
 
+  <details class="adv">
+    <summary>旧版报告（需要私钥）</summary>
+    <p class="hint">只有 2026-10-23 之前生成的旧格式邮件才需要；新邮件不需要填。</p>
+    <textarea id="key-text" rows="5" placeholder="-----BEGIN PRIVATE KEY-----&#10;…&#10;-----END PRIVATE KEY-----"></textarea>
+  </details>
+
   <section class="card hidden" id="result-card">
     <h2>面试结果</h2>
     <div id="result"></div>
   </section>
 
-  <p class="disclaimer">团队内部工具，请勿把私钥发给他人。</p>
+  <p class="disclaimer">团队内部工具，请勿把口令/私钥发给他人。</p>
 </main>
 
 <div id="toast" class="toast hidden" role="status"></div>

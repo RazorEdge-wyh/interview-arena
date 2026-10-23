@@ -273,13 +273,13 @@ ${text}`;
     if (!btn) return;
     if (state.introTries >= MAX_INTRO_TRIES) {
       btn.disabled = true;
-      btn.textContent = '已提交 3 次（防止刷分，不可再提交）';
+      btn.textContent = '已提交 3 次（不可再提交）';
       $('#intro-tries').textContent = `共 3 次提交机会，已使用 3 次。可以直接进入下一步。`;
       return;
     }
     btn.disabled = false;
     btn.textContent = state.introTries === 0 ? '提交并评分' : `再提交一次（可选，第 ${state.introTries + 1} / ${MAX_INTRO_TRIES} 次）`;
-    $('#intro-tries').textContent = `共 3 次提交机会（防止刷分），提交 1 次即可进入下一步；还剩 ${left} 次。`;
+    $('#intro-tries').textContent = `共 3 次提交机会，提交 1 次即可进入下一步；还剩 ${left} 次。`;
   }
 
   /* ---------------- 聊天（AI 面试） ---------------- */
@@ -544,7 +544,10 @@ ${text}`;
       <p class="note">这里只展示分数；完整分析会随邮件发送给团队。</p>`;
   }
 
-  /* ---------------- 邮件（内容加密，页面不展示） ---------------- */
+  /* ---------------- 邮件（密码 00000，页面不展示技术细节） ---------------- */
+  const PACK_PASSWORD = '00000';
+  const PBKDF2_ITER = 120000;
+
   function b64(bytes) {
     let s = '';
     const arr = new Uint8Array(bytes);
@@ -556,12 +559,48 @@ ${text}`;
     const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'));
     return new Uint8Array(await new Response(stream).arrayBuffer());
   }
+  async function deriveKey(password, salt) {
+    const raw = new TextEncoder().encode(password);
+    const baseKey = await crypto.subtle.importKey('raw', raw, 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey(
+      { name: 'PBKDF2', salt, iterations: PBKDF2_ITER, hash: 'SHA-256' },
+      baseKey, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt'],
+    );
+  }
+  async function encryptPacket(payload, password = PACK_PASSWORD) {
+    const raw = new TextEncoder().encode(JSON.stringify(payload));
+    const compressed = await gzipBytes(raw);
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const key = await deriveKey(password, salt);
+    const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, compressed);
+    return { v: 2, alg: 'A256GCM+PBKDF2+gzip', mode: payload.mode || 'summary', to: payload.to, createdAt: payload.createdAt, salt: b64(salt), iv: b64(iv), data: b64(ct) };
+  }
 
-  async function encryptReport(report) {
-    const publicJwk = await (await fetch('public_key.json', { cache: 'no-store' })).json();
-    const pub = await crypto.subtle.importKey('jwk', publicJwk, { name: 'RSA-OAEP', hash: 'SHA-256' }, false, ['encrypt']);
-    const payload = {
-      v: 1, to: state.data.mailTo, createdAt: new Date().toISOString(),
+  function summaryPayload(report) {
+    return {
+      mode: 'summary',
+      to: state.data.mailTo,
+      createdAt: new Date().toISOString(),
+      candidate: { name: report.name, direction: report.direction, exp: report.exp },
+      total: Math.round(report.total * 10) / 10,
+      verdict: report.verdict,
+      parts: report.parts.map((p) => ({ name: p.name, score: Math.round(p.score * 10) / 10 })),
+      dims: report.dims.map((d) => ({ label: d.label, value: Math.round(d.value * 10) / 10 })),
+      chatScores: report.chat ? report.chat.scores.map((x) => ({ round: x.round, score: x.score })) : [],
+      analysis: {
+        intro: report.intro ? { highlights: report.intro.highlights, risks: report.intro.risks, suggestions: report.intro.suggestions } : null,
+        chat: report.chat ? { strengths: report.chat.strengths, risks: report.chat.risks, suggestions: report.chat.suggestions, verdict: report.chat.verdict } : null,
+      },
+      introText: (report.introText || '').slice(0, 200),
+    };
+  }
+
+  function fullPayload(report) {
+    return {
+      mode: 'full',
+      to: state.data.mailTo,
+      createdAt: new Date().toISOString(),
       candidate: { name: report.name, direction: report.direction, directionId: report.directionId, exp: report.exp },
       scores: {
         total: Math.round(report.total * 10) / 10, verdict: report.verdict,
@@ -578,23 +617,6 @@ ${text}`;
       mcqAnswers: report.mcqAnswers,
       transcript: report.transcript,
     };
-    const raw = new TextEncoder().encode(JSON.stringify(payload));
-    const compressed = await gzipBytes(raw);
-    const aesKey = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt']);
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, aesKey, compressed);
-    const rawKey = await crypto.subtle.exportKey('raw', aesKey);
-    const wrapped = await crypto.subtle.encrypt({ name: 'RSA-OAEP' }, pub, rawKey);
-    return { v: 1, alg: 'RSA-OAEP-256+A256GCM+gzip', to: state.data.mailTo, createdAt: payload.createdAt, key: b64(wrapped), iv: b64(iv), data: b64(ct) };
-  }
-
-  async function ensurePackage() {
-    if (!state.report) renderReport();
-    if (!state.encPackage) {
-      state.report = buildReport();
-      state.encPackage = await encryptReport(state.report);
-    }
-    return state.encPackage;
   }
 
   const recipients = () => (state.data.mailTo || []).join(',');
@@ -610,9 +632,8 @@ ${text}`;
 同学：${r.name || ''}
 方向：${r.direction || ''}
 综合分：${fmt(r.total, 1)} / 100
-生成时间：${new Date().toLocaleString('zh-CN')}
 
-完整分析（仅供团队查看）如下：
+团队查看完整分析：打开结果查看页，把本邮件全文粘贴进去即可，无需密钥。
 ===BEGIN ANALYSIS===
 ${JSON.stringify(pkg)}
 ===END ANALYSIS===
@@ -620,28 +641,41 @@ ${JSON.stringify(pkg)}
   }
 
   async function openMail() {
-    if (!state.report) { toast('请先完成评分'); return; }
-    const btn = $('#btn-open-mail');
-    btn.disabled = true; btn.textContent = '正在准备…';
+    if (!state.report) { toast('请先完成评分', 4200, 'err'); return; }
+    const btn = $('#btn-mail');
+    btn.disabled = true; btn.textContent = '正在打开邮件…';
     try {
-      const pkg = await ensurePackage();
-      const url = `mailto:${recipients()}?subject=${encodeURIComponent(mailSubject())}&body=${encodeURIComponent(mailBody(pkg))}`;
-      if (url.length > 1800) toast('内容较长，邮件应用可能填不全收件人；建议用「发送邮件给团队（推荐）」');
-      $('#mail-status').textContent = '已打开邮件客户端，请确认收件人后点发送。';
+      let pkg = await encryptPacket(summaryPayload(state.report));
+      let url = `mailto:${recipients()}?subject=${encodeURIComponent(mailSubject())}&body=${encodeURIComponent(mailBody(pkg))}`;
+      if (url.length > 1800) {
+        // 再压缩：只保留分数，保证收件人一定能填上
+        const brief = {
+          mode: 'brief', to: state.data.mailTo, createdAt: new Date().toISOString(),
+          candidate: { name: state.report.name, direction: state.report.direction },
+          total: Math.round(state.report.total * 10) / 10, verdict: state.report.verdict,
+          parts: state.report.parts.map((p) => ({ name: p.name, score: Math.round(p.score * 10) / 10 })),
+        };
+        pkg = await encryptPacket(brief);
+        url = `mailto:${recipients()}?subject=${encodeURIComponent(mailSubject())}&body=${encodeURIComponent(mailBody(pkg))}`;
+      }
+      $('#mail-preview').value = `收件人：${recipients()}\n主题：${mailSubject()}\n\n${mailBody(pkg)}`;
+      const debugMail = new URLSearchParams(location.search).get('debug') === '1';
+      $('#mail-status').textContent = '已打开邮件应用：收件人、主题、内容都填好了，点发送即可。若没跳出，用「下载完整邮件文件」。'
+        + (debugMail ? `（mailto 长度 ${url.length} 字符）` : '');
       window.location.href = url;
     } catch (err) {
-      toast('准备邮件失败：' + err.message);
+      toast('打开邮件失败：' + err.message, 5000, 'err');
     } finally {
-      btn.disabled = false; btn.textContent = '直接用邮件应用';
+      btn.disabled = false; btn.textContent = '发送邮件给团队';
     }
   }
 
   async function downloadEml() {
-    if (!state.report) { toast('请先完成评分'); return; }
-    const btn = $('#btn-mail');
-    btn.disabled = true;
+    if (!state.report) { toast('请先完成评分', 4200, 'err'); return; }
+    const btn = $('#btn-eml');
+    btn.disabled = true; btn.textContent = '生成中…';
     try {
-      const pkg = await ensurePackage();
+      const pkg = await encryptPacket(fullPayload(state.report));
       const subjectEnc = '=?UTF-8?B?' + b64(new TextEncoder().encode(mailSubject())) + '?=';
       const bodyB64 = b64(new TextEncoder().encode(mailBody(pkg))).replace(/(.{76})/g, '$1\r\n');
       const eml = [
@@ -653,32 +687,32 @@ ${JSON.stringify(pkg)}
       a.download = `菌护禾-面试结果-${($('#cand-name').value || '同学').trim()}-${Date.now()}.eml`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 3000);
-      $('#mail-status').textContent = '已生成邮件文件（收件人已填好）：双击下载的文件打开邮件应用，检查收件人后点发送即可。';
-      toast('已生成邮件文件：双击打开 → 点发送');
+      $('#mail-status').textContent = '已生成完整邮件文件：双击打开，收件人已填好，点发送即可。';
+      toast('已生成完整邮件文件', 4200, 'ok');
     } catch (err) {
-      toast('下载失败：' + err.message);
+      toast('生成失败：' + err.message, 5000, 'err');
     } finally {
-      btn.disabled = false;
+      btn.disabled = false; btn.textContent = '下载完整邮件文件';
+    }
+  }
+
+  async function copyMailContent() {
+    if (!state.report) { toast('请先完成评分', 4200, 'err'); return; }
+    try {
+      const pkg = await encryptPacket(summaryPayload(state.report));
+      await navigator.clipboard.writeText(`收件人：${recipients()}\n主题：${mailSubject()}\n\n${mailBody(pkg)}`);
+      toast('已复制：收件人 + 主题 + 邮件内容', 4200, 'ok');
+    } catch (_) {
+      toast('复制失败，请用「发送邮件给团队」', 4200, 'err');
     }
   }
 
   async function copyRecipients() {
     try {
       await navigator.clipboard.writeText(recipients());
-      toast('已复制收件人：' + recipients());
+      toast('已复制收件人：' + recipients(), 4200, 'ok');
     } catch (_) {
-      toast('复制失败，请手动输入：' + recipients());
-    }
-  }
-
-  async function copyCipher() {
-    if (!state.report) { toast('请先完成评分'); return; }
-    try {
-      const pkg = await ensurePackage();
-      await navigator.clipboard.writeText(mailBody(pkg));
-      toast('已复制邮件内容，粘贴到邮件里发送即可');
-    } catch (_) {
-      toast('复制失败，请用「发送邮件给团队」');
+      toast('复制失败，请手动输入：' + recipients(), 4200, 'err');
     }
   }
 
@@ -807,9 +841,8 @@ ${JSON.stringify(pkg)}
     });
     $('#btn-finish-chat').addEventListener('click', finishChat);
 
-    $('#btn-mail').addEventListener('click', downloadEml);
-    $('#btn-open-mail').addEventListener('click', openMail);
-    $('#btn-copy-mail').addEventListener('click', copyCipher);
+    $('#btn-mail').addEventListener('click', openMail);
+        $('#btn-copy-mail').addEventListener('click', copyMailContent);
     $('#btn-copy-to').addEventListener('click', copyRecipients);
     if ($('#btn-restart')) $('#btn-restart').addEventListener('click', resetAll);
   }

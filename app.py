@@ -62,20 +62,20 @@ def call_ai(messages: list[dict], json_mode: bool = True, max_tokens: int = 900,
 
 
 def encrypt_report(payload: dict) -> dict:
-    n = int.from_bytes(urlsafe_b64decode(PUBLIC_JWK["n"] + "=" * (-len(PUBLIC_JWK["n"]) % 4)), "big")
-    e = int.from_bytes(urlsafe_b64decode(PUBLIC_JWK["e"] + "=" * (-len(PUBLIC_JWK["e"]) % 4)), "big")
-    pub = rsa.RSAPublicNumbers(e, n).public_key()
+    import hashlib
+    password = b"00000"
+    salt = os.urandom(16)
+    key = hashlib.pbkdf2_hmac("sha256", password, salt, 120000, dklen=32)
     raw = gzip.compress(json.dumps(payload, ensure_ascii=False).encode("utf-8"))
-    aes_key = os.urandom(32)
     iv = os.urandom(12)
-    ct = AESGCM(aes_key).encrypt(iv, raw, None)
-    wrapped = pub.encrypt(aes_key, padding.OAEP(mgf=padding.MGF1(hashes.SHA256()), algorithm=hashes.SHA256(), label=None))
+    ct = AESGCM(key).encrypt(iv, raw, None)
     return {
-        "v": 1,
-        "alg": "RSA-OAEP-256+A256GCM+gzip",
+        "v": 2,
+        "alg": "A256GCM+PBKDF2+gzip",
+        "mode": "full",
         "to": list(DEFAULT_MAIL_TO),
         "createdAt": datetime.now().isoformat(),
-        "key": b64encode(wrapped).decode(),
+        "salt": b64encode(salt).decode(),
         "iv": b64encode(iv).decode(),
         "data": b64encode(ct).decode(),
     }

@@ -84,7 +84,7 @@
   <section id="step3" class="step hidden">
     <div class="card">
       <h2>自我介绍</h2>
-      <p class="hint">不限结构，写你想让团队了解的内容就行。AI 会分析内容。共 3 次提交机会，只是用来防止刷分，提交 1 次即可进入下一步。</p>
+      <p class="hint">不限结构，写你想让团队了解的内容就行。AI 会分析内容。共 3 次提交机会，提交 1 次即可进入下一步。</p>
       <textarea id="intro-text" rows="12" maxlength="3000" placeholder="想写什么就写什么：你的经历、做过的事、擅长什么、想加入的原因……"></textarea>
       <div class="row between">
         <span id="intro-count" class="hint">0 / 3000</span>
@@ -127,13 +127,14 @@
     <div class="card" id="send-card">
       <h2>面试完成</h2>
       <p class="hint">
-        请把本次面试结果发送给团队，收件人：<b>2160634966@qq.com</b>、<b>2715240991@qq.com</b>
+        请把本次面试结果发送给团队：点下面按钮会直接打开你的邮箱，收件人、主题、内容都已填好，确认后点发送即可。<br>
+        收件人：<b>2160634966@qq.com</b>、<b>2715240991@qq.com</b>
         <button id="btn-copy-to" class="btn small ghost" type="button">复制收件人</button><br>
         <span class="warn-text">未发送将无法进入后续筛选，可能会失去这次机会。</span>
       </p>
       <div class="row">
-        <button id="btn-mail" class="btn primary" type="button">发送邮件给团队（推荐）</button>
-        <button id="btn-open-mail" class="btn ghost" type="button">直接用邮件应用</button>
+        <button id="btn-mail" class="btn primary" type="button">发送邮件给团队</button>
+        <button id="btn-eml" class="btn ghost small" type="button">下载完整邮件文件</button>
         <button id="btn-copy-mail" class="btn ghost small" type="button">复制邮件内容</button>
       </div>
       <p id="mail-status" class="hint"></p>

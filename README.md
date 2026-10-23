@@ -5,7 +5,7 @@
 
 **在线体验**：https://razoredge-wyh.github.io/interview-arena/
 
-**团队查看结果**：https://razoredge-wyh.github.io/interview-arena/decrypt.html （粘贴整封邮件 + 私钥即可，无需选择文件）
+**团队查看结果**：https://razoredge-wyh.github.io/interview-arena/decrypt.html （粘贴整封邮件即可，默认口令 00000，无需密钥）
 
 **我们在找什么人**：微生物研发/发酵、设施草莓农艺、嵌入式硬件、数据/算法、市场/合作社 BD、运营/合规/财务 —— 详见 [docs/talent.md](docs/talent.md)。
 
