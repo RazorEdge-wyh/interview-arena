@@ -1,0 +1,70 @@
+{
+  "version": "1.0.0",
+  "updated": "2026-10-23",
+  "weights": { "mcq": 0.3, "intro": 0.35, "qa": 0.35 },
+  "dimensions": {
+    "analysis": { "label": "分析判断", "type": "ability", "desc": "拆解问题、定位原因、基于证据决策" },
+    "execution": { "label": "执行推进", "type": "ability", "desc": "把想法落地、推进节奏、交付结果" },
+    "collaboration": { "label": "协作沟通", "type": "personality", "desc": "同步信息、处理冲突、带动他人" },
+    "resilience": { "label": "抗压韧性", "type": "personality", "desc": "面对否定与失败时的恢复与成长" }
+  },
+  "questions": [
+    {
+      "id": "q1",
+      "tag": "需求变更 / 优先级",
+      "title": "上线前一天，产品经理临时要求加一个「紧急小功能」，你会先做什么？",
+      "options": [
+        { "text": "直接加班做出来，先上线再说", "scores": { "analysis": 2, "execution": 5, "collaboration": 3, "resilience": 4 } },
+        { "text": "先评估改动范围与风险，和产品确认优先级，再决定做不做", "scores": { "analysis": 5, "execution": 4, "collaboration": 5, "resilience": 4 } },
+        { "text": "拒绝，按原计划走，改到下个版本", "scores": { "analysis": 3, "execution": 2, "collaboration": 1, "resilience": 2 } },
+        { "text": "把相关的人都拉进群，让大家投票决定", "scores": { "analysis": 2, "execution": 1, "collaboration": 3, "resilience": 3 } }
+      ]
+    },
+    {
+      "id": "q2",
+      "tag": "数据分析 / 归因",
+      "title": "新功能上线后，核心转化率下降了 20%。你的第一步是？",
+      "options": [
+        { "text": "先加大投放，看数据能不能拉回来", "scores": { "analysis": 1, "execution": 4, "collaboration": 2, "resilience": 3 } },
+        { "text": "拆解漏斗，定位是哪一步、哪类用户掉了", "scores": { "analysis": 5, "execution": 4, "collaboration": 3, "resilience": 3 } },
+        { "text": "先回滚，恢复原状再排查", "scores": { "analysis": 3, "execution": 5, "collaboration": 2, "resilience": 2 } },
+        { "text": "先问老板或资深同事怎么看", "scores": { "analysis": 1, "execution": 2, "collaboration": 4, "resilience": 3 } }
+      ]
+    },
+    {
+      "id": "q3",
+      "tag": "协作冲突 / 责任边界",
+      "title": "同事负责的部分延迟交付，导致你的模块也要延期。你会？",
+      "options": [
+        { "text": "不声张，自己熬夜把他的部分补上", "scores": { "analysis": 2, "execution": 5, "collaboration": 2, "resilience": 4 } },
+        { "text": "先同步风险与影响，再和他一起定补救方案", "scores": { "analysis": 4, "execution": 4, "collaboration": 5, "resilience": 4 } },
+        { "text": "直接向主管反馈，请主管协调", "scores": { "analysis": 3, "execution": 2, "collaboration": 3, "resilience": 3 } },
+        { "text": "在群里说明这是他的问题，划清责任", "scores": { "analysis": 2, "execution": 2, "collaboration": 1, "resilience": 2 } }
+      ]
+    },
+    {
+      "id": "q4",
+      "tag": "挫折 / 成长",
+      "title": "你连续两次方案被否，接下来最可能做什么？",
+      "options": [
+        { "text": "逐个找评审人问清楚原因，逐条改", "scores": { "analysis": 4, "execution": 4, "collaboration": 4, "resilience": 5 } },
+        { "text": "自己关起门来复盘，重做一版", "scores": { "analysis": 4, "execution": 5, "collaboration": 2, "resilience": 4 } },
+        { "text": "先放一放，等状态好了再说", "scores": { "analysis": 2, "execution": 2, "collaboration": 2, "resilience": 2 } },
+        { "text": "开始怀疑自己是不是不适合这行", "scores": { "analysis": 1, "execution": 1, "collaboration": 1, "resilience": 1 } }
+      ]
+    }
+  ],
+  "introRubric": [
+    { "key": "structure", "label": "结构清晰", "desc": "能被快速理解：现状—行动—结果—反思的脉络" },
+    { "key": "specificity", "label": "具体可验证", "desc": "有数字、有细节、有可追问的事实，而非形容词" },
+    { "key": "selfAwareness", "label": "自我认知", "desc": "能说清优势、短板与改进动作" },
+    { "key": "roleFit", "label": "岗位匹配", "desc": "经历与目标岗位的要求有明确对应关系" }
+  ],
+  "qaRubric": [
+    { "key": "specificity", "label": "具体性", "desc": "回答有事实、数字、场景，而非泛泛而谈" },
+    { "key": "logic", "label": "逻辑性", "desc": "结论—依据—边界清楚，能自洽" },
+    { "key": "reflection", "label": "反思深度", "desc": "能说出为什么、学到什么、下次怎么改" },
+    { "key": "fit", "label": "岗位匹配", "desc": "体现出与岗位相关的能力或经验" }
+  ],
+  "disclaimer": "本工具用于面试准备与自我评估，评分由规则与 AI 辅助生成，不构成任何录用、淘汰或人事决策依据。"
+}

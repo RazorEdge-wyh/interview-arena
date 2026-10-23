@@ -1,0 +1,30 @@
+# secrets / keys — never commit
+_keys/
+*.pem
+*.key
+.streamlit/secrets.toml
+
+# generated encrypted reports
+*.enc.json
+*.enc
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# node (if any tooling added later)
+node_modules/
+
+# editor / OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# local scratch
+_scratch/
+preview*/
+*.log

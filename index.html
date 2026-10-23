@@ -1,0 +1,184 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Interview Arena · AI 面试评估站</title>
+<meta name="description" content="4 道情境选择题评估能力与性格，自我介绍与 AI 追问双评分，结果加密发送给面试官。所有数据只在浏览器内处理。" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧭</text></svg>" />
+<link rel="stylesheet" href="assets/styles.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="logo">🧭</span>
+    <div>
+      <h1>Interview Arena</h1>
+      <p class="sub">能力 · 性格 · 表达 · 追问 —— 四段式面试评估</p>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <span class="badge" title="所有计算与调用都在你的浏览器内完成，本页不落库">🔒 浏览器内处理</span>
+    <button id="btn-settings" class="btn ghost" type="button">AI 设置</button>
+  </div>
+</header>
+
+<!-- AI 设置面板 -->
+<section id="settings" class="panel settings hidden" aria-label="AI 设置">
+  <div class="panel-head">
+    <h2>AI 设置（可选）</h2>
+    <button id="btn-settings-close" class="btn ghost small" type="button">收起</button>
+  </div>
+  <p class="hint">
+    填写你自己的 API Key 后，自我介绍与追问评分会调用大模型；不填则使用本地规则评分（页面会明确标注）。
+    Key 只保存在本机浏览器 localStorage，不会上传到本仓库。
+  </p>
+  <div class="grid-3">
+    <label>API Base URL
+      <input id="cfg-base" type="url" placeholder="https://api.deepseek.com" autocomplete="off" />
+    </label>
+    <label>模型名
+      <input id="cfg-model" type="text" placeholder="deepseek-chat" autocomplete="off" />
+    </label>
+    <label>API Key
+      <input id="cfg-key" type="password" placeholder="sk-..." autocomplete="off" />
+    </label>
+  </div>
+  <div class="row">
+    <button id="btn-settings-save" class="btn primary" type="button">保存设置</button>
+    <button id="btn-settings-clear" class="btn ghost" type="button">清除 Key</button>
+    <span id="cfg-status" class="hint"></span>
+  </div>
+</section>
+
+<main>
+  <nav class="stepper" aria-label="步骤">
+    <ol>
+      <li data-step="1" class="active"><span>1</span>能力性格测评</li>
+      <li data-step="2"><span>2</span>自我介绍</li>
+      <li data-step="3"><span>3</span>AI 追问</li>
+      <li data-step="4"><span>4</span>评估报告</li>
+    </ol>
+    <div class="progress"><div id="progress-bar"></div></div>
+  </nav>
+
+  <!-- Step 1 -->
+  <section id="step1" class="step">
+    <div class="card">
+      <h2>先认识一下</h2>
+      <div class="grid-3">
+        <label>姓名 / 昵称
+          <input id="cand-name" type="text" placeholder="例如：小李" autocomplete="off" />
+        </label>
+        <label>应聘方向
+          <select id="cand-role">
+            <option value="技术研发">技术研发</option>
+            <option value="产品运营">产品运营</option>
+            <option value="市场销售">市场销售</option>
+            <option value="设计创意">设计创意</option>
+            <option value="职能支持">职能支持</option>
+            <option value="实习/校招">实习 / 校招</option>
+          </select>
+        </label>
+        <label>相关经验
+          <select id="cand-exp">
+            <option value="0-1 年">0–1 年</option>
+            <option value="1-3 年">1–3 年</option>
+            <option value="3-5 年">3–5 年</option>
+            <option value="5 年以上">5 年以上</option>
+          </select>
+        </label>
+      </div>
+      <p class="hint">下面 4 题没有标准答案，请按你<strong>真实的第一反应</strong>选择；凭直觉作答，不要猜"正确选项"。</p>
+    </div>
+
+    <div id="mcq-list"></div>
+
+    <div class="row end">
+      <button id="btn-to-step2" class="btn primary" type="button">下一步：自我介绍 →</button>
+    </div>
+  </section>
+
+  <!-- Step 2 -->
+  <section id="step2" class="step hidden">
+    <div class="card">
+      <h2>自我介绍（文字）</h2>
+      <p class="hint">建议 250–500 字：现状与背景 → 做过什么（带数字）→ 结果 → 反思与下一步。可以粘贴简历要点，但不要整段模板。</p>
+      <textarea id="intro-text" rows="12" maxlength="3000" placeholder="例：我是……目前在……做过……其中最有代表性的是……结果是……我从中学到了……接下来我想……"></textarea>
+      <div class="row between">
+        <span id="intro-count" class="hint">0 / 3000</span>
+        <div class="row">
+          <button id="btn-score-intro" class="btn primary" type="button">AI 评分</button>
+          <button id="btn-to-step3" class="btn ghost" type="button">跳过，进入问答 →</button>
+        </div>
+      </div>
+      <div id="intro-result" class="result hidden"></div>
+    </div>
+  </section>
+
+  <!-- Step 3 -->
+  <section id="step3" class="step hidden">
+    <div class="card">
+      <h2>AI 追问</h2>
+      <p class="hint">系统会根据你的自我介绍生成 4 个追问（没有 Key 时使用固定 4 题）。每题写 3–6 句，尽量给事实与数字。</p>
+      <div class="row">
+        <button id="btn-gen-qa" class="btn primary" type="button">生成 4 个追问</button>
+        <span id="qa-status" class="hint"></span>
+      </div>
+      <div id="qa-list" class="qa-list"></div>
+      <div class="row end hidden" id="qa-submit-row">
+        <button id="btn-score-qa" class="btn primary" type="button">提交问答并评分</button>
+      </div>
+      <div id="qa-result" class="result hidden"></div>
+    </div>
+  </section>
+
+  <!-- Step 4 -->
+  <section id="step4" class="step hidden">
+    <div class="card">
+      <h2>评估报告</h2>
+      <div id="report"></div>
+    </div>
+
+    <div class="card" id="send-card">
+      <h2>加密发送给面试官</h2>
+      <p class="hint">
+        分数与回答会先在浏览器内压缩，再用 <strong>RSA-OAEP 公钥 + AES-256-GCM</strong> 混合加密；
+        只有持有私钥的面试官能解密。页面不会把明文发送到任何服务器。
+      </p>
+      <div class="row">
+        <button id="btn-encrypt" class="btn primary" type="button">生成加密报告</button>
+        <button id="btn-copy" class="btn ghost" type="button" disabled>复制加密内容</button>
+        <button id="btn-download" class="btn ghost" type="button" disabled>下载 .enc 文件</button>
+        <button id="btn-mail" class="btn ghost" type="button" disabled>用邮件发送</button>
+      </div>
+      <p id="enc-status" class="hint"></p>
+      <textarea id="enc-output" rows="8" readonly placeholder="加密结果会显示在这里（可直接粘贴到微信/邮件）"></textarea>
+      <p class="hint">
+        收件邮箱：<code>2160634966@qq.com</code>。邮件客户端打开后请确认收件人与内容再发送；
+        若内容过长，请使用「复制加密内容」或下载附件后手动发送。
+      </p>
+    </div>
+
+    <div class="row end">
+      <button id="btn-restart" class="btn ghost" type="button">重新开始（清空本次数据）</button>
+    </div>
+  </section>
+
+  <p class="disclaimer" id="disclaimer"></p>
+</main>
+
+<footer class="footer">
+  <span>Interview Arena · 开源面试评估工具</span>
+  <span>·</span>
+  <a href="README.md">说明</a>
+  <span>·</span>
+  <a href="https://github.com/RazorEdge-wyh/interview-arena" target="_blank" rel="noopener">GitHub</a>
+</footer>
+
+<div id="toast" class="toast hidden" role="status"></div>
+
+<script src="assets/app.js"></script>
+</body>
+</html>
