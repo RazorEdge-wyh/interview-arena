@@ -796,21 +796,43 @@ ${JSON.stringify(pkg)}
 
   function downloadEml() {
     if (!state.report) { toast('请先完成评分', 4200, 'err'); return; }
-    if (!state.fullPkg) { prepareReportAssets(); toast('正在准备，请稍等 1 秒再点', 4200, 'err'); return; }
+    if (!state.summaryPkg) { prepareReportAssets(); toast('正在准备，请稍等 1 秒再点', 4200, 'err'); return; }
     try {
-      const subjectEnc = '=?UTF-8?B?' + b64(new TextEncoder().encode(mailSubject())) + '?=';
-      const bodyB64 = b64(new TextEncoder().encode(mailBody(state.fullPkg))).replace(/(.{76})/g, '$1\r\n');
+      const boundary = '----Junhuhe' + Date.now().toString(36);
+      const code = `===BEGIN ANALYSIS===\n${JSON.stringify(state.summaryPkg)}\n===END ANALYSIS===\n`;
+      const intro = `金种子杯 · 菌护禾 团队招募\n同学：${state.report.name}\n方向：${state.report.direction}\n综合分：${fmt(state.report.total, 1)} / 100\n\n完整分析见附件「面试结果.txt」；团队把它粘贴到结果查看页即可看到（无需密钥）。\n`;
+      const b64raw = (t) => b64(new TextEncoder().encode(t));
+      const toB64 = (t) => b64raw(t).replace(/(.{76})/g, '$1\r\n');
+      const subjectEnc = '=?UTF-8?B?' + b64raw(mailSubject()) + '?=';
+      const attachmentName = `菌护禾-面试结果-${($('#cand-name').value || '同学').trim()}.txt`;
+      const encodedName = encodeURIComponent(attachmentName);
       const eml = [
-        `To: ${recipients()}`, `Subject: ${subjectEnc}`, 'MIME-Version: 1.0',
-        'Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: base64', '', bodyB64,
+        `To: ${recipients()}`,
+        `Subject: ${subjectEnc}`,
+        'MIME-Version: 1.0',
+        `Content-Type: multipart/mixed; boundary="${boundary}"`,
+        '',
+        `--${boundary}`,
+        'Content-Type: text/plain; charset=UTF-8',
+        'Content-Transfer-Encoding: base64',
+        '',
+        toB64(intro),
+        `--${boundary}`,
+        `Content-Type: text/plain; charset=UTF-8; name*=UTF-8''${encodedName}`,
+        `Content-Disposition: attachment; filename*=UTF-8''${encodedName}`,
+        'Content-Transfer-Encoding: base64',
+        '',
+        toB64(code),
+        `--${boundary}--`,
+        '',
       ].join('\r\n');
       const a = document.createElement('a');
       a.href = URL.createObjectURL(new Blob([eml], { type: 'message/rfc822' }));
-      a.download = `菌护禾-面试结果-${($('#cand-name').value || '同学').trim()}-${Date.now()}.eml`;
+      a.download = `菌护禾-面试结果邮件-${($('#cand-name').value || '同学').trim()}-${Date.now()}.eml`;
       a.click();
       setTimeout(() => URL.revokeObjectURL(a.href), 3000);
-      $('#mail-status').textContent = '已生成完整邮件文件：双击打开，收件人已填好，点发送即可。正文里那段很长的乱码是加密后的结果，属正常。';
-      toast('已生成完整邮件文件', 4200, 'ok');
+      $('#mail-status').textContent = '已下载邮件文件（含加密结果附件）：双击打开，收件人和附件都已填好，点发送即可。';
+      toast('已下载邮件文件：双击打开 → 点发送（带附件）', 5000, 'ok');
     } catch (err) {
       toast('生成失败：' + err.message, 5000, 'err');
     }
