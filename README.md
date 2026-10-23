@@ -5,6 +5,8 @@
 
 **在线体验**：https://razoredge-wyh.github.io/interview-arena/
 
+**解密工具**：https://razoredge-wyh.github.io/interview-arena/decrypt.html （浏览器内用私钥解密，不上传）
+
 **我们在找什么人**：微生物研发/发酵、设施草莓农艺、嵌入式硬件、数据/算法、市场/合作社 BD、运营/合规/财务 —— 详见 [docs/talent.md](docs/talent.md)。
 
 [![Pages](https://img.shields.io/badge/GitHub%20Pages-online-brightgreen)](https://razoredge-wyh.github.io/interview-arena/)
@@ -101,6 +103,9 @@ python tools/gen_keys.py --out-public public_key.json --out-private ../_keys/int
 ```bash
 python tools/decrypt_report.py report.enc.json --private-key ../_keys/interview_report_private.pem
 ```
+
+或直接用**在线解密页**（推荐，零安装）：打开 https://razoredge-wyh.github.io/interview-arena/decrypt.html
+粘贴加密 JSON + 选择私钥 PEM → 解密 → 可打印/下载明文 JSON。私钥只在浏览器内存，不上传。
 
 输出为 JSON：候选人信息、总分与各模块分、四维画像、自我介绍评分、逐题问答点评、原始回答。
 

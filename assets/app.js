@@ -1,4 +1,4 @@
-/* Interview Arena — 浏览器端面试评估站
+﻿/* Interview Arena — 浏览器端面试评估站
  * 纯静态：无后端、无数据库；AI 调用可选（用户自带 Key）；结果用公钥混合加密后交给候选人自行发送。
  */
 (() => {
@@ -565,10 +565,12 @@ ${state.qa.map((x, i) => `【追问${i + 1}】${x.q}\n【回答】${x.answer}`).
 
     const payload = {
       v: 1, to: MAIL_TO, createdAt: new Date().toISOString(),
-      candidate: { name: report.name, role: report.role, exp: report.exp },
+      candidate: { name: report.name, role: report.role, roleId: report.roleId, exp: report.exp },
       total: Math.round(report.total * 10) / 10,
       parts: report.parts.map((p) => ({ name: p.name, score: Math.round(p.score * 10) / 10, weight: p.weight })),
       dims: report.dims.map((d) => ({ label: d.label, type: d.type, value: Math.round(d.value * 10) / 10 })),
+      roleFit: (report.roleFit || []).map((f) => ({ name: f.name, score: Math.round(f.score * 10) / 10, id: f.id })),
+      roleId: report.roleId,
       intro: report.intro ? { total: report.intro.total, mode: report.intro.mode, dimensions: report.intro.dimensions, highlights: report.intro.highlights, risks: report.intro.risks, suggestions: report.intro.suggestions } : null,
       qa: report.qa ? { overall: report.qa.overall, mode: report.qa.mode, scores: report.qa.scores, suggestions: report.qa.suggestions } : null,
       // 原始回答也加密，便于面试官复核（不落库、不上传）
