@@ -1,0 +1,9 @@
+{
+  "name": "interview-arena-email-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "金种子杯·菌护禾 招募站：发送面试结果的 serverless 邮件接口",
+  "dependencies": {
+    "nodemailer": "^6.9.13"
+  }
+}

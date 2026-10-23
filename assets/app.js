@@ -1,4 +1,4 @@
-﻿/* 金种子杯 · 菌护禾 · 团队招募评估（v6）
+/* 金种子杯 · 菌护禾 · 团队招募评估（v6）
  * 项目介绍（可跳过）→ 5 题（2 通用 + 1 项目 + 2 方向专业）→ 自我介绍（最多 3 次）→ AI 真实多轮面试 → 评分
  * 页面只展示分数；完整分析随邮件发给团队
  */
@@ -83,9 +83,29 @@
       baseUrl: (s.baseUrl || cfg.baseUrl || DEFAULT_BASE).replace(/\/+$/, ''),
       model: s.model || cfg.model || DEFAULT_MODEL,
       apiKey: s.apiKey || cfg.apiKey || '',
+      apiBase: (s.apiBase || cfg.apiBase || '').replace(/\/+$/, ''),
+      apiSecret: s.apiSecret || cfg.apiSecret || '',
     };
   }
   function hasAI() { return !!getSettings().apiKey; }
+
+  /* ---------------- 后端发信 ---------------- */
+  function backendReady() { return !!getSettings().apiBase; }
+
+  async function backendSend(subject, text) {
+    const s = getSettings();
+    const url = s.apiBase + '/api/send';
+    const headers = { 'Content-Type': 'application/json' };
+    if (s.apiSecret) headers['x-api-secret'] = s.apiSecret;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ subject, text }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP ' + res.status));
+    return data;
+  }
 
   /* ---------------- 数据 ---------------- */
   async function loadData() {
@@ -767,13 +787,32 @@ ${JSON.stringify(pkg)}
     }
   }
 
-  function openMail() {
+  async function openMail() {
     if (!state.report) { toast('请先完成评分', 4200, 'err'); return; }
     if (!state.mailtoUrl || !state.fullCode) {
       prepareReportAssets();
       toast('正在准备邮件，请稍等 1 秒再点', 4200, 'err');
       return;
     }
+    // 有后端：直接由后端发信，一步到位
+    if (backendReady()) {
+      const btn = $('#btn-mail');
+      btn.disabled = true; btn.textContent = '正在发送…';
+      try {
+        const text = '金种子杯 · 菌护禾 团队招募\n\n' + state.fullCode;
+        await backendSend(mailSubject(), text);
+        $('#mail-status').textContent = '已发送到团队邮箱（2160634966 / 2715240991 / 355594812）。';
+        toast('已发送到团队邮箱', 5000, 'ok');
+        btn.textContent = '已发送';
+        btn.disabled = true;
+        return;
+      } catch (err) {
+        console.warn('backend send failed', err);
+        toast('后端发送失败：' + (err.message || err) + '，改用邮件/复制方式', 6000, 'err');
+        btn.disabled = false; btn.textContent = '发送邮件给团队';
+      }
+    }
+    // 无后端：复制完整密文 + 打开短邮件
     let copied = false;
     try { copied = copyTextFallback(state.fullCode); } catch (_) {}
     if (!copied) {
