@@ -30,3 +30,4 @@ preview*/
 *.log
 
 # local AI config (never commit real keys)
+.vercel

@@ -1,0 +1,9 @@
+﻿# Vercel 部署时排除无关文件，避免误判框架
+streamlit
+tools
+docs
+README.md
+LICENSE
+.gitignore
+.git
+__pycache__

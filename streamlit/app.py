@@ -1,4 +1,4 @@
-﻿"""菌护禾 · 团队招募评估（Streamlit 版 v5）
+"""菌护禾 · 团队招募评估（Streamlit 版 v5）
 5 题（2 通用 + 1 项目 + 2 方向专业）→ 自我介绍 → AI 真实多轮面试 → 评分
 页面只展示分数；详细分析加密后发到团队邮箱（SMTP 未配置时可下载/复制密文）。
 """
@@ -21,7 +21,7 @@ from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parent.parent
 DATA = json.loads((ROOT / "data" / "questions.json").read_text(encoding="utf-8"))
 DIRECTIONS = {d["id"]: d for d in DATA["directions"]}
 PUBLIC_JWK = json.loads((ROOT / "public_key.json").read_text(encoding="utf-8"))
