@@ -1,13 +1,25 @@
-# Interview Arena · AI 面试评估站
+# 菌护禾 · 团队招募评估站（Interview Arena）
 
-> 4 道情境题看能力与性格 → 自我介绍 AI 评分 → AI 追问再评分 → 分数**加密**发给面试官。
+> 面向「菌护禾」微生物农业项目的招募评估：4 道田间情境题看能力与性格 → 自我介绍 AI 评分 → AI 追问再评分 → **人岗匹配** → 分数与回答可跳转邮件发送给团队。
 > 纯前端可跑（GitHub Pages），也可用 Streamlit 自托管（服务端发信）。
 
 **在线体验**：https://razoredge-wyh.github.io/interview-arena/
 
+**我们在找什么人**：微生物研发/发酵、设施草莓农艺、嵌入式硬件、数据/算法、市场/合作社 BD、运营/合规/财务 —— 详见 [docs/talent.md](docs/talent.md)。
+
 [![Pages](https://img.shields.io/badge/GitHub%20Pages-online-brightgreen)](https://razoredge-wyh.github.io/interview-arena/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
+
+---
+
+## 0. 关于菌护禾
+
+**在菌最容易死、作物最关键的 0–30 天定殖窗口，用 150 元级微灌把根际活菌托住。**
+
+具体做法：ESP32 + 电容式土壤水分（每点 2 个取中值）+ DS18B20 温度 + 继电器 + 小水泵；只在"水分低于标定阈值且温度适宜"时触发一次小水量补墒，设最小间隔与单次水量上限，窗口结束系统退出。第一阶段以第 7/15 天根际活菌数为硬指标。
+
+本网站就是这套项目的**招募评估工具**：题目来自项目真实场景（田间误触发、数据不显著、跨专业冲突、付费谈判），报告会按 6 个岗位的能力侧重给出人岗匹配建议。
 
 ---
 
@@ -104,7 +116,7 @@ python tools/decrypt_report.py report.enc.json --private-key ../_keys/interview_
 - 综合分区间：≥80 强推荐 / 65–79 推荐 / 50–64 待定 / <50 暂不建议推进。
 - 详细 rubric 与自定义方法见 [docs/scoring.md](docs/scoring.md)。
 
-> **合规声明**：本工具用于面试准备与自我评估，评分为规则 + AI 辅助生成，**不构成录用、淘汰或任何人事决策依据**。如用于真实招聘，请遵循当地个人信息保护法规并取得候选人同意。
+> **说明**：本工具用于面试准备与菌护禾团队招募参考。评分由规则与 AI 辅助生成，**具体招募事项（岗位方向、培养安排、是否录用）由团队根据面试与实际需要决定**。如用于真实招募，请遵循当地个人信息保护法规并取得候选人同意。
 
 ## 5. 隐私
 
@@ -128,6 +140,7 @@ interview-arena/
 ├── tools/decrypt_report.py # 解密报告
 ├── docs/scoring.md
 ├── docs/privacy.md
+├── docs/talent.md          # 6 个岗位画像、招募流程与依据
 └── LICENSE
 ```
 

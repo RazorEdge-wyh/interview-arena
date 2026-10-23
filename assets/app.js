@@ -57,6 +57,7 @@
     try {
       localStorage.setItem(DRAFT_KEY, JSON.stringify({
         answers: state.answers, intro: state.intro,
+        role: $('#cand-role') ? $('#cand-role').value : 'auto',
       }));
     } catch (_) {}
   }
@@ -67,6 +68,7 @@
       if (d && typeof d === 'object') {
         state.answers = d.answers || {};
         state.intro = typeof d.intro === 'string' ? d.intro : '';
+        state.role = d.role || 'auto';
       }
     } catch (_) {}
   }
@@ -76,6 +78,69 @@
     const res = await fetch('data/questions.json', { cache: 'no-store' });
     if (!res.ok) throw new Error('题库加载失败');
     return res.json();
+  }
+
+  /* ---------------- 团队与岗位 ---------------- */
+  function teamLine() {
+    const t = state.data.team || {};
+    return `团队：${t.name || '菌护禾'}——${t.positioning || ''}；当前阶段：${t.stage || ''}`;
+  }
+
+  function selectedRoleObj() {
+    const id = $('#cand-role').value;
+    if (!id || id === 'auto') return null;
+    return (state.data.talentRoles || []).find((r) => r.id === id) || null;
+  }
+
+  function roleContext() {
+    const r = selectedRoleObj();
+    if (!r) return '候选目标岗位：暂不确定（请按四维画像给出 2 个最匹配的岗位建议）';
+    return `候选目标岗位：${r.name}。岗位使命：${r.mission}；硬性要求：${(r.mustHave || []).join('、')}；面试关注：${(r.interviewFocus || []).join('、')}`;
+  }
+
+  function computeRoleFit(percent) {
+    return (state.data.talentRoles || []).map((r) => {
+      const w = r.fitWeights || {};
+      let s = 0, tw = 0;
+      Object.keys(w).forEach((k) => { s += (percent[k] || 0) * w[k]; tw += w[k]; });
+      return { id: r.id, name: r.name, score: tw ? s / tw : 0 };
+    }).sort((a, b) => b.score - a.score);
+  }
+
+  function renderTeamAndRoles() {
+    const t = state.data.team || {};
+    if ($('#team-name')) $('#team-name').textContent = `${t.name || '菌护禾'} · 团队招募`;
+    if ($('#team-track')) $('#team-track').textContent = t.track || '现代农业与大健康产业 / 微生物农业';
+    if ($('#team-positioning')) $('#team-positioning').textContent = t.positioning || '';
+    if ($('#team-stage')) $('#team-stage').textContent = t.stage || '';
+    if ($('#team-hiring-note')) $('#team-hiring-note').textContent = t.hiringNote || '';
+
+    const sel = $('#cand-role');
+    sel.innerHTML = '<option value="auto">暂不确定（自动推荐岗位）</option>'
+      + (state.data.talentRoles || []).map((r) => `<option value="${r.id}">${esc(r.name)}</option>`).join('');
+
+    const wrap = $('#role-cards');
+    wrap.innerHTML = (state.data.talentRoles || []).map((r) => `
+      <div class="role-card" data-role="${r.id}">
+        <div class="role-name">${esc(r.name)}</div>
+        <div class="role-mission">${esc(r.mission)}</div>
+        <div class="role-tags">${(r.mustHave || []).slice(0, 2).map((x) => `<span>${esc(x)}</span>`).join('')}</div>
+      </div>`).join('');
+    $$('.role-card', wrap).forEach((card) => {
+      card.addEventListener('click', () => {
+        sel.value = card.dataset.role;
+        $$('.role-card', wrap).forEach((c) => c.classList.remove('selected'));
+        card.classList.add('selected');
+        toast(`已选择：${card.querySelector('.role-name').textContent}`);
+        saveDraft();
+      });
+    });
+    sel.addEventListener('change', () => {
+      $$('.role-card', wrap).forEach((c) => c.classList.toggle('selected', c.dataset.role === sel.value));
+      saveDraft();
+    });
+    sel.value = state.role || 'auto';
+    $$('.role-card', wrap).forEach((c) => c.classList.toggle('selected', c.dataset.role === sel.value));
   }
 
   /* ---------------- MCQ ---------------- */
@@ -202,22 +267,25 @@
 
   async function scoreIntro(text) {
     if (!text || text.trim().length < 30) throw new Error('自我介绍太短（至少 30 字）');
-    const role = $('#cand-role').value;
+    const role = selectedRoleObj();
+    const roleName = role ? role.name : '暂不确定';
     const exp = $('#cand-exp').value;
     if (!hasAI()) {
       toast('未配置 API Key，使用本地规则评分');
       return heuristicIntro(text);
     }
     const rubric = state.data.introRubric.map((r) => `- ${r.key}（${r.label}）：${r.desc}`).join('\n');
-    const prompt = `你是资深面试官。请按 4 个维度给候选人的自我介绍打分，每个维度 0–25 分，只输出 JSON。
+    const prompt = `你是菌护禾团队的面试官。请按 4 个维度给候选人的自我介绍打分，每个维度 0–25 分，只输出 JSON。
+${teamLine()}
+${roleContext()}
 维度：
 ${rubric}
 
 输出格式：
-{"dimensions":{"structure":{"score":0,"reason":"引用原文的具体依据"},"specificity":{"score":0,"reason":""},"selfAwareness":{"score":0,"reason":""},"roleFit":{"score":0,"reason":""}},"total":0,"highlights":["2-3条优点"],"risks":["2-3条风险"],"suggestions":["2-3条可执行改进"]}
+{"dimensions":{"structure":{"score":0,"reason":"引用原文的具体依据"},"specificity":{"score":0,"reason":""},"selfAwareness":{"score":0,"reason":""},"roleFit":{"score":0,"reason":""}},"total":0,"highlights":["2-3条优点（结合岗位要求）"],"risks":["2-3条风险（结合岗位要求）"],"suggestions":["2-3条可执行改进"]}
 要求：分数克制、理由引用原文关键词；total = 四维之和（0–100）；不要输出 JSON 以外的内容。
 
-候选人应聘方向：${role}；经验：${exp}。
+候选人：应聘方向 ${roleName}；经验 ${exp}。
 自我介绍：
 ${text}`;
     const out = await callAI([
@@ -258,12 +326,12 @@ ${text}`;
       toast('未配置 API Key，使用固定 4 题');
       return FALLBACK_QA.map((x) => ({ ...x }));
     }
-    const role = $('#cand-role').value;
-    const prompt = `你是面试官。根据候选人的自我介绍生成 4 个追问，只输出 JSON。
+    const prompt = `你是菌护禾团队的面试官。根据候选人的自我介绍生成 4 个追问，只输出 JSON。
+${teamLine()}
+${roleContext()}
 输出格式：{"questions":[{"q":"一句话问题（<=40字）","focus":"考察点"}]}
-要求：追问必须钩住自我介绍里的具体细节；分别覆盖：动机/难点与解法/结果归因/岗位匹配；不要重复自我介绍原句。
+要求：追问必须钩住自我介绍里的具体细节，并结合岗位要求；分别覆盖：动机/难点与解法/结果归因/岗位匹配；不要重复自我介绍原句。
 
-岗位：${role}
 自我介绍：
 ${intro || '（候选人未填，按通用岗位追问）'}`;
     const out = await callAI([
@@ -338,7 +406,8 @@ ${rubric}
 {"scores":[{"index":1,"score":0,"reason":"引用回答原文的依据"},{"index":2,"score":0,"reason":""},{"index":3,"score":0,"reason":""},{"index":4,"score":0,"reason":""}],"overall":0,"suggestions":["2-3条改进建议"]}
 要求：overall = 四题分数之和（0–100）；理由要具体；不要输出 JSON 以外内容。
 
-岗位：${$('#cand-role').value}
+${teamLine()}
+${roleContext()}
 ${state.qa.map((x, i) => `【追问${i + 1}】${x.q}\n【回答】${x.answer}`).join('\n\n')}`;
         out = await callAI([
           { role: 'system', content: '你只输出合法 JSON。' },
@@ -400,14 +469,17 @@ ${state.qa.map((x, i) => `【追问${i + 1}】${x.q}\n【回答】${x.answer}`).
       value: mcq.percent[k] ?? 0,
     })).sort((a, b) => a.value - b.value);
     const weak = dims.slice(0, 2);
+    const roleFit = computeRoleFit(mcq.percent);
+    const chosen = selectedRoleObj();
     return {
       name: ($('#cand-name').value || '匿名候选人').trim(),
-      role: $('#cand-role').value,
+      role: chosen ? chosen.name : '暂不确定',
+      roleId: chosen ? chosen.id : 'auto',
       exp: $('#cand-exp').value,
       total: clamp(total, 0, 100),
       verdict: verdictOf(total),
       parts,
-      mcq, dims, weak,
+      mcq, dims, weak, roleFit,
       intro: state.introScore,
       qa: state.qaScore,
       createdAt: new Date().toISOString(),
@@ -434,6 +506,20 @@ ${state.qa.map((x, i) => `【追问${i + 1}】${x.q}\n【回答】${x.answer}`).
         <ul class="clean">${(r.qa.suggestions || []).map((x) => `<li>→ ${esc(x)}</li>`).join('')}</ul>
       </div>` : '<p class="hint">未完成 AI 追问（已按剩余模块重新归一化权重）。</p>';
 
+    const fit = r.roleFit || [];
+    const chosenId = r.roleId;
+    const fitRows = fit.slice(0, 3).map((f, i) => {
+      const mark = f.id === chosenId ? '（你的目标）' : '';
+      const tag = i === 0 ? '最匹配' : `第 ${i + 1}`;
+      return barRow(`${tag} · ${f.name}${mark}`, f.score);
+    }).join('');
+    const fitBlock = `
+      <div class="report-block">
+        <h3>人岗匹配建议（按菌护禾 6 个岗位的能力侧重计算）</h3>
+        <div class="dim-grid">${fitRows}</div>
+        <p class="hint">匹配分 = 四维画像按岗位权重加权；你的目标岗位：${esc(r.role)}。若目标岗位不是第一匹配，建议面试时重点补该岗位要求的证据（试验 / 样机 / 渠道 / 登记经验）。</p>
+      </div>`;
+
     box.innerHTML = `
       <div class="big-score">
         <b>${fmt(r.total, 1)}</b><span>/ 100 综合评分</span>
@@ -443,6 +529,7 @@ ${state.qa.map((x, i) => `【追问${i + 1}】${x.q}\n【回答】${x.answer}`).
       <div class="split">${partRows}</div>
       <h3>四维画像（来自 4 道情境题）</h3>
       <div class="dim-grid">${dimRows}</div>
+      ${fitBlock}
       <div class="report-block">
         <h3>面试官可追问的方向（按弱项）</h3>
         <ul class="clean">${r.weak.map((d) => `<li><b>${esc(d.label)}</b>（${fmt(d.value)}）：请对方举一个最近的具体例子，追问"当时你具体做了什么、结果如何、如果重来会改什么"。</li>`).join('')}</ul>
@@ -575,9 +662,10 @@ ${state.qa.map((x, i) => `【追问${i + 1}】${x.q}\n【回答】${x.answer}`).
   function buildPlainReport(report) {
     const lines = [];
     const when = new Date(report.createdAt).toLocaleString('zh-CN');
-    lines.push('Interview Arena · 面试评估报告');
+    lines.push('Interview Arena · 菌护禾团队招募评估报告');
     lines.push(`生成时间：${when}`);
-    lines.push(`候选人：${report.name} ｜ 应聘方向：${report.role} ｜ 经验：${report.exp}`);
+    lines.push(teamLine());
+    lines.push(`候选人：${report.name} ｜ 目标岗位：${report.role} ｜ 经验：${report.exp}`);
     lines.push('');
     lines.push(`一、综合评分：${fmt(report.total, 1)} / 100（${report.verdict.text}）`);
     report.parts.forEach((p) => {
@@ -589,6 +677,13 @@ ${state.qa.map((x, i) => `【追问${i + 1}】${x.q}\n【回答】${x.answer}`).
     report.dims.forEach((d) => {
       lines.push(`- ${d.label}（${d.type === 'ability' ? '能力' : '性格'}）：${fmt(d.value, 1)}`);
     });
+    lines.push('');
+    lines.push('二附、人岗匹配建议（按菌护禾 6 个岗位的能力侧重加权）');
+    (report.roleFit || []).slice(0, 3).forEach((f, i) => {
+      const mark = f.id === report.roleId ? '（目标岗位）' : '';
+      lines.push(`- ${i === 0 ? '最匹配' : '第 ' + (i + 1)}：${f.name}${mark} — ${fmt(f.score, 1)}`);
+    });
+    lines.push(`目标岗位：${report.role}；若目标岗位不是第一匹配，建议面试时重点补该岗位要求的证据（试验 / 样机 / 渠道 / 登记经验）。`);
     lines.push('');
     lines.push('三、自我介绍原文');
     lines.push(state.intro || '（未提交）');
@@ -753,6 +848,9 @@ ${state.qa.map((x, i) => `【追问${i + 1}】${x.q}\n【回答】${x.answer}`).
     localStorage.removeItem(DRAFT_KEY);
     state.answers = {}; state.intro = ''; state.introScore = null;
     state.qa = []; state.qaScore = null; state.report = null; state.encPackage = null;
+    state.role = 'auto';
+    if ($('#cand-role')) $('#cand-role').value = 'auto';
+    $$('.role-card').forEach((c) => c.classList.remove('selected'));
     $('#intro-text').value = '';
     $('#intro-count').textContent = '0 / 3000';
     $('#intro-result').classList.add('hidden');
@@ -867,7 +965,8 @@ ${state.qa.map((x, i) => `【追问${i + 1}】${x.q}\n【回答】${x.answer}`).
 
   function runDemo() {
     state.answers = {};
-    state.data.questions.forEach((q) => { state.answers[q.id] = 1; });
+    const demoPicks = { q1: 1, q2: 0, q3: 1, q4: 1 };
+    state.data.questions.forEach((q) => { state.answers[q.id] = demoPicks[q.id] ?? 1; });
     state.intro = DEMO_INTRO;
     // 演示评分：模拟一次真实 AI 评分的结果（虚假样例，仅用于展示报告形态）
     state.introScore = {
@@ -896,6 +995,9 @@ ${state.qa.map((x, i) => `【追问${i + 1}】${x.q}\n【回答】${x.answer}`).
       mode: 'demo',
     };
     $('#cand-name').value = '演示候选人';
+    $('#cand-role').value = 'hardware';
+    state.role = 'hardware';
+    $$('.role-card').forEach((c) => c.classList.toggle('selected', c.dataset.role === 'hardware'));
     renderMCQ();
     $('#intro-text').value = state.intro;
     $('#intro-count').textContent = `${state.intro.length} / 3000`;
@@ -917,6 +1019,7 @@ ${state.qa.map((x, i) => `【追问${i + 1}】${x.q}\n【回答】${x.answer}`).
       state.data = await loadData();
       $('#disclaimer').textContent = state.data.disclaimer || '';
       restoreDraft();
+      renderTeamAndRoles();
       renderMCQ();
       $('#intro-text').value = state.intro;
       $('#intro-count').textContent = `${state.intro.length} / 3000`;

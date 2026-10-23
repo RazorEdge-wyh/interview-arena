@@ -37,6 +37,8 @@ from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 ROOT = Path(__file__).resolve().parent
 QUESTIONS = json.loads((ROOT / "data" / "questions.json").read_text(encoding="utf-8"))
+QUESTS_TEAM = QUESTIONS["team"]
+QUESTS_ROLES = QUESTIONS["talentRoles"]
 PUBLIC_JWK = json.loads((ROOT / "public_key.json").read_text(encoding="utf-8"))
 DEFAULT_MAIL_TO = "2160634966@qq.com"
 DIMS = QUESTIONS["dimensions"]
@@ -179,10 +181,26 @@ st.session_state.setdefault("mail_to", DEFAULT_MAIL_TO)
 st.session_state.setdefault("cand_name", "")
 
 with st.sidebar:
-    st.header("🧭 Interview Arena")
-    st.caption("能力 · 性格 · 表达 · 追问 四段式面试评估")
+    st.header("🌱 菌护禾 · 团队招募")
+    st.caption("田间情境 · 能力性格 · 表达追问 · 人岗匹配")
     st.session_state["cand_name"] = st.text_input("姓名 / 昵称", value=st.session_state["cand_name"], placeholder="候选人")
-    role = st.selectbox("应聘方向", ["技术研发", "产品运营", "市场销售", "设计创意", "职能支持", "实习/校招"])
+    role_options = ["auto"] + [r["id"] for r in QUESTS_ROLES]
+    role_id = st.selectbox(
+        "目标岗位",
+        role_options,
+        format_func=lambda x: "暂不确定（自动推荐）" if x == "auto" else next(r["name"] for r in QUESTS_ROLES if r["id"] == x),
+    )
+    role = "暂不确定" if role_id == "auto" else next(r["name"] for r in QUESTS_ROLES if r["id"] == role_id)
+    role_ctx = (
+        "候选目标岗位：暂不确定（请按四维画像给出 2 个最匹配的岗位建议）"
+        if role_id == "auto"
+        else (
+            f"候选目标岗位：{role}。岗位使命："
+            + next(r["mission"] for r in QUESTS_ROLES if r["id"] == role_id)
+            + "；硬性要求："
+            + "、".join(next(r["mustHave"] for r in QUESTS_ROLES if r["id"] == role_id))
+        )
+    )
     exp = st.selectbox("相关经验", ["0-1 年", "1-3 年", "3-5 年", "5 年以上"])
     st.session_state["mail_to"] = st.text_input("面试官邮箱", value=st.session_state["mail_to"])
     st.divider()
@@ -194,8 +212,16 @@ with st.sidebar:
         st.session_state["intro"] = ""
         st.rerun()
 
-st.title("能力性格测评 · 自我介绍 · AI 追问 · 加密报告")
-st.caption("所有评分在本次会话内完成；提交给面试官的只有加密后的报告。")
+st.title("菌护禾 · 团队招募评估")
+st.caption(
+    f"**{QUESTS_TEAM['name']}**：{QUESTS_TEAM['positioning']}　｜　{QUESTS_TEAM['stage']}"
+)
+with st.expander("我们在招什么人（6 个岗位）"):
+    st.caption(QUESTS_TEAM["hiringNote"])
+    for r in QUESTS_ROLES:
+        st.markdown(f"**{r['name']}** — {r['mission']}")
+        st.caption("硬性要求：" + "、".join(r["mustHave"]) + "　｜　面试关注：" + "、".join(r["interviewFocus"]))
+st.caption("所有评分在本次会话内完成；发送方式见第 ④ 步。")
 
 # ---------------------------------------------------------------- step 1
 st.subheader("① 4 道情境题")
@@ -227,6 +253,16 @@ def mcq_score() -> dict:
     return {"dims": dims, "percent": pct, "total": total, "complete": mcq_complete}
 
 
+def role_fit(percent: dict) -> list[dict]:
+    out = []
+    for r in QUESTS_ROLES:
+        w = r.get("fitWeights", {})
+        tw = sum(w.values()) or 1
+        score = sum(percent.get(k, 0) * v for k, v in w.items()) / tw
+        out.append({"id": r["id"], "name": r["name"], "score": score})
+    return sorted(out, key=lambda x: -x["score"])
+
+
 # ---------------------------------------------------------------- step 2
 st.divider()
 st.subheader("② 自我介绍")
@@ -240,7 +276,9 @@ if st.button("AI 评分自我介绍", type="primary"):
         try:
             if secret("DEEPSEEK_API_KEY"):
                 rubric = "\n".join(f"- {r['key']}（{r['label']}）：{r['desc']}" for r in QUESTIONS["introRubric"])
-                prompt = f"""你是资深面试官。按 4 个维度给候选人的自我介绍打分（0–25/维度），只输出 JSON。
+                prompt = f"""你是菌护禾团队的面试官。按 4 个维度给候选人的自我介绍打分（0–25/维度），只输出 JSON。
+团队：{QUESTS_TEAM['name']}——{QUESTS_TEAM['positioning']}；当前阶段：{QUESTS_TEAM['stage']}
+{role_ctx}
 维度：
 {rubric}
 
@@ -248,7 +286,7 @@ if st.button("AI 评分自我介绍", type="primary"):
 {{"dimensions":{{"structure":{{"score":0,"reason":""}},"specificity":{{"score":0,"reason":""}},"selfAwareness":{{"score":0,"reason":""}},"roleFit":{{"score":0,"reason":""}}}},"total":0,"highlights":[],"risks":[],"suggestions":[]}}
 要求：分数克制、理由引用原文；total 为四维之和（0–100）。
 
-岗位：{role}；经验：{exp}
+经验：{exp}
 自我介绍：
 {intro}"""
                 out = call_ai(prompt)
@@ -283,11 +321,12 @@ st.subheader("③ AI 追问")
 if st.button("生成 4 个追问"):
     try:
         if secret("DEEPSEEK_API_KEY"):
-            prompt = f"""你是面试官。根据候选人的自我介绍生成 4 个追问，只输出 JSON：
+            prompt = f"""你是菌护禾团队的面试官。根据候选人的自我介绍生成 4 个追问，只输出 JSON：
 {{"questions":[{{"q":"一句话问题（<=40字）","focus":"考察点"}}]}}
-要求：追问钩住自我介绍的具体细节；覆盖动机/难点与解法/结果归因/岗位匹配。
+团队：{QUESTS_TEAM['name']}——{QUESTS_TEAM['positioning']}
+{role_ctx}
+要求：追问钩住自我介绍的具体细节，并结合岗位要求；覆盖动机/难点与解法/结果归因/岗位匹配。
 
-岗位：{role}
 自我介绍：
 {intro or "（未填，按通用岗位追问）"}"""
             out = call_ai(prompt, max_tokens=700)
@@ -365,10 +404,11 @@ if st.button("生成评估报告", type="primary"):
         key=lambda x: x[2],
     )
     st.session_state["report"] = {
-        "candidate": {"name": st.session_state["cand_name"] or "匿名候选人", "role": role, "exp": exp},
+        "candidate": {"name": st.session_state["cand_name"] or "匿名候选人", "role": role, "roleId": role_id, "exp": exp},
         "total": round(total, 1), "verdict": verdict,
         "parts": [{"name": p[0], "score": round(p[1], 1), "weight": p[2]} for p in parts],
         "dims": [{"label": d[0], "type": d[1], "value": round(d[2], 1)} for d in dims],
+        "roleFit": [{"id": f["id"], "name": f["name"], "score": round(f["score"], 1)} for f in role_fit(m["percent"])],
         "intro": intro_score, "qa": qa_score,
         "answers": [{"q": x["q"], "answer": x["answer"]} for x in qa_list],
         "introText": intro,
@@ -384,6 +424,11 @@ if report:
     st.markdown("**四维画像（弱项优先追问）**")
     for d in report["dims"]:
         st.progress(min(1.0, d["value"] / 100), text=f"{d['label']}（{'能力' if d['type'] == 'ability' else '性格'}）：{d['value']}")
+    st.markdown("**人岗匹配建议（按菌护禾 6 个岗位的能力侧重加权）**")
+    for i, f in enumerate(report.get("roleFit", [])[:3]):
+        mark = "（你的目标）" if f["id"] == report["candidate"].get("roleId") else ""
+        st.progress(min(1.0, f["score"] / 100), text=f"{'最匹配' if i == 0 else '第 ' + str(i + 1)} · {f['name']}{mark}：{f['score']}")
+    st.caption("若目标岗位不是第一匹配，建议面试时重点补该岗位要求的证据（试验 / 样机 / 渠道 / 登记经验）。")
     st.markdown("**面试官可追问**：" + "；".join(f"{d['label']}（{d['value']}）" for d in report["dims"][:2]))
     with st.expander("我的原始回答（仅本会话可见）"):
         st.json({"intro": report["introText"], "qa": report["answers"]})

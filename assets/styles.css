@@ -161,6 +161,27 @@ ul.clean li { margin: 4px 0; font-size: 14px; }
 .report-block h3 { font-size: 15px; }
 code { background: #f2f5f2; padding: 1px 6px; border-radius: 6px; font-size: 13px; }
 
+/* ---------- team & roles ---------- */
+.team-card { border-left: 4px solid var(--brand); }
+.team-card h2 { margin: 8px 0 6px; }
+.role-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
+@media (max-width: 900px) { .role-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 600px) { .role-grid { grid-template-columns: 1fr; } }
+.role-card {
+  border: 1px solid var(--line); border-radius: 12px; padding: 12px; cursor: pointer;
+  background: #fff; transition: .15s ease; display: flex; flex-direction: column; gap: 6px;
+}
+.role-card:hover { border-color: var(--brand); background: #fbfdfb; }
+.role-card.selected { border-color: var(--brand); background: var(--brand-soft); box-shadow: 0 0 0 1px var(--brand) inset; }
+.role-card .role-name { font-weight: 600; font-size: 14.5px; }
+.role-card .role-mission { font-size: 12.8px; color: var(--ink-soft); line-height: 1.5; }
+.role-card .role-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.role-card .role-tags span {
+  font-size: 11px; color: var(--brand-dark); background: var(--brand-soft);
+  padding: 1px 6px; border-radius: 999px;
+}
+.fit-block { margin-top: 12px; }
+
 /* ---------- mail / optional encryption ---------- */
 .check {
   display: flex; align-items: flex-start; gap: 8px; font-size: 13.5px; color: var(--ink);

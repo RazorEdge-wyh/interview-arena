@@ -3,19 +3,19 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Interview Arena · AI 面试评估站</title>
-<meta name="description" content="4 道情境选择题评估能力与性格，自我介绍与 AI 追问双评分，结果加密发送给面试官。所有数据只在浏览器内处理。" />
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧭</text></svg>" />
+<title>菌护禾 · 团队招募评估 | Interview Arena</title>
+<meta name="description" content="菌护禾团队招募评估：4 道田间情境题看能力与性格，自我介绍与 AI 追问双评分，并给出人岗匹配建议；结果可跳转邮件发送给团队。数据只在浏览器内处理。" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>" />
 <link rel="stylesheet" href="assets/styles.css" />
 </head>
 <body>
 
 <header class="topbar">
   <div class="brand">
-    <span class="logo">🧭</span>
+    <span class="logo">🌱</span>
     <div>
-      <h1>Interview Arena</h1>
-      <p class="sub">能力 · 性格 · 表达 · 追问 —— 四段式面试评估</p>
+      <h1>菌护禾 · 团队招募评估</h1>
+      <p class="sub">田间情境 · 能力性格 · 表达追问 · 人岗匹配</p>
     </div>
   </div>
   <div class="topbar-right">
@@ -65,6 +65,20 @@
 
   <!-- Step 1 -->
   <section id="step1" class="step">
+    <div class="card team-card">
+      <span class="q-tag" id="team-track">现代农业与大健康产业 / 微生物农业</span>
+      <h2 id="team-name">菌护禾 · 团队招募</h2>
+      <p class="hint" id="team-positioning"></p>
+      <p class="hint" id="team-stage"></p>
+      <p class="hint"><b id="team-hiring-note"></b></p>
+    </div>
+
+    <div class="card">
+      <h2>我们在找什么人</h2>
+      <p class="hint">点选一个岗位，后面的评分会按该岗位的能力侧重给出「人岗匹配」建议；不确定就选「暂不确定」，系统会按你的四维画像推荐。</p>
+      <div id="role-cards" class="role-grid"></div>
+    </div>
+
     <div class="card">
       <h2>先认识一下</h2>
       <div class="grid-3">
@@ -72,14 +86,7 @@
           <input id="cand-name" type="text" placeholder="例如：小李" autocomplete="off" />
         </label>
         <label>应聘方向
-          <select id="cand-role">
-            <option value="技术研发">技术研发</option>
-            <option value="产品运营">产品运营</option>
-            <option value="市场销售">市场销售</option>
-            <option value="设计创意">设计创意</option>
-            <option value="职能支持">职能支持</option>
-            <option value="实习/校招">实习 / 校招</option>
-          </select>
+          <select id="cand-role"></select>
         </label>
         <label>相关经验
           <select id="cand-exp">
@@ -90,7 +97,7 @@
           </select>
         </label>
       </div>
-      <p class="hint">下面 4 题没有标准答案，请按你<strong>真实的第一反应</strong>选择；凭直觉作答，不要猜"正确选项"。</p>
+      <p class="hint">下面 4 题来自菌护禾的真实场景（田间故障 / 数据解读 / 跨专业冲突 / 付费谈判），没有标准答案，请按你<strong>真实的第一反应</strong>选择；凭直觉作答，不要猜"正确选项"。</p>
     </div>
 
     <div id="mcq-list"></div>
