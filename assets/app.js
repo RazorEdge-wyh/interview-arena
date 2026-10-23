@@ -35,13 +35,22 @@
   const fmt = (n, d = 0) => (Number(n) || 0).toFixed(d).replace(/\.0$/, '');
   const clamp = (n, a, b) => Math.min(b, Math.max(a, Number(n) || 0));
 
-  function toast(msg, ms = 3000) {
+  function toast(msg, ms = 4200, type = '') {
     const el = $('#toast');
+    if (!el) return;
     el.textContent = msg;
-    el.classList.remove('hidden');
+    el.className = 'toast' + (type ? ' ' + type : '');
     clearTimeout(toast._t);
     toast._t = setTimeout(() => el.classList.add('hidden'), ms);
   }
+
+  function showNotice(el, text, type = '') {
+    if (!el) return;
+    el.textContent = text;
+    el.className = 'notice' + (type ? ' ' + type : '');
+    el.classList.remove('hidden');
+  }
+  function hideNotice(el) { if (el) el.classList.add('hidden'); }
 
   /* ---------------- 配置 ---------------- */
   function getSettings() {
@@ -73,6 +82,7 @@
   /* ---------------- 渲染：项目介绍 ---------------- */
   function renderProjectIntro() {
     const p = state.data.projectIntro || {};
+    if ($('#project-title')) $('#project-title').textContent = p.title || '项目介绍';
     if ($('#project-lead')) $('#project-lead').textContent = p.lead || '';
     if (!$('#project-intro')) return;
     $('#project-intro').innerHTML = (p.sections || []).map((s) => `
@@ -263,13 +273,13 @@ ${text}`;
     if (!btn) return;
     if (state.introTries >= MAX_INTRO_TRIES) {
       btn.disabled = true;
-      btn.textContent = '已提交 3 次（不可再改）';
-      $('#intro-tries').textContent = '已用完 3 次提交机会，可以进入下一步。';
-    } else {
-      btn.disabled = false;
-      btn.textContent = `提交并评分（第 ${state.introTries + 1} / ${MAX_INTRO_TRIES} 次）`;
-      $('#intro-tries').textContent = `还可以提交 ${left} 次；取最好的一次成绩。`;
+      btn.textContent = '已提交 3 次（防止刷分，不可再提交）';
+      $('#intro-tries').textContent = `共 3 次提交机会，已使用 3 次。可以直接进入下一步。`;
+      return;
     }
+    btn.disabled = false;
+    btn.textContent = state.introTries === 0 ? '提交并评分' : `再提交一次（可选，第 ${state.introTries + 1} / ${MAX_INTRO_TRIES} 次）`;
+    $('#intro-tries').textContent = `共 3 次提交机会（防止刷分），提交 1 次即可进入下一步；还剩 ${left} 次。`;
   }
 
   /* ---------------- 聊天（AI 面试） ---------------- */
@@ -394,7 +404,7 @@ ${text}`;
   }
 
   async function finishChat() {
-    if (!state.chat.length) { toast('还没有开始面试'); return; }
+    if (!state.chat.length) { toast('还没有开始面试', 4200, 'err'); return; }
     if (state.chatScored) { goStep(5); return; }
     const btn = $('#btn-finish-chat');
     btn.disabled = true;
@@ -747,10 +757,22 @@ ${JSON.stringify(pkg)}
       saveDraft();
     });
 
-    $('#btn-skip-intro').addEventListener('click', () => goStep(2));
-    $('#btn-start-eval').addEventListener('click', () => goStep(2));
-    $('#btn-to-step3').addEventListener('click', () => {
-      if (!mcqScore().complete) { toast('还有题目没选'); return; }
+    if ($('#btn-start-eval')) $('#btn-start-eval').addEventListener('click', () => { hideNotice($('#mcq-notice')); goStep(2); });
+    if ($('#btn-to-step3')) $('#btn-to-step3').addEventListener('click', () => {
+      const qs = questionsFor(state.direction);
+      const missing = qs.filter((q) => state.answers[q.id] === undefined);
+      if (missing.length) {
+        $$('#mcq-list .q-card').forEach((card) => {
+          const q = qs.find((x) => x.id === card.dataset.qid);
+          card.classList.toggle('error', !!q && state.answers[q.id] === undefined);
+        });
+        showNotice($('#mcq-notice'), `还有 ${missing.length} 题没有选，请全部选完再进入下一步（已用红框标出）。`, 'err');
+        const first = document.querySelector('#mcq-list .q-card.error');
+        if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        toast(`还有 ${missing.length} 题没选`, 4200, 'err');
+        return;
+      }
+      hideNotice($('#mcq-notice'));
       goStep(3);
     });
     $('#btn-score-intro').addEventListener('click', async (e) => {
@@ -763,9 +785,11 @@ ${JSON.stringify(pkg)}
         if (!state.introScore || r.total > state.introScore.total) state.introScore = r;
         renderIntroResult(state.introScore);
         saveDraft();
-        toast(`第 ${state.introTries} 次提交完成`);
+        toast(`已提交（第 ${state.introTries} 次，共 3 次机会）；可以直接进入下一步`, 4200, 'ok');
+        const next = $('#btn-to-step4');
+        if (next) { next.classList.remove('ghost'); next.classList.add('primary'); }
       } catch (err) {
-        toast('提交失败：' + err.message);
+        toast('提交失败：' + err.message, 5000, 'err');
       } finally {
         refreshIntroButton();
       }
@@ -787,7 +811,7 @@ ${JSON.stringify(pkg)}
     $('#btn-open-mail').addEventListener('click', openMail);
     $('#btn-copy-mail').addEventListener('click', copyCipher);
     $('#btn-copy-to').addEventListener('click', copyRecipients);
-    $('#btn-restart').addEventListener('click', resetAll);
+    if ($('#btn-restart')) $('#btn-restart').addEventListener('click', resetAll);
   }
 
   async function init() {

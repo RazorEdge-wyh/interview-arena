@@ -32,11 +32,10 @@
   <!-- Step 1 · 项目介绍 -->
   <section id="step1" class="step">
     <div class="card">
-      <h2>项目介绍</h2>
+      <h2 id="project-title">项目介绍</h2>
       <p class="hint" id="project-lead"></p>
       <div id="project-intro"></div>
       <div class="row between intro-actions">
-        <button id="btn-skip-intro" class="btn ghost" type="button">跳过</button>
         <button id="btn-start-eval" class="btn primary" type="button">我已了解，开始测评</button>
       </div>
     </div>
@@ -44,14 +43,6 @@
 
   <!-- Step 2 · 情境测评 -->
   <section id="step2" class="step hidden">
-    <div class="card team-card">
-      <span class="q-tag" id="team-track"></span>
-      <h2 id="team-name"></h2>
-      <p class="hint" id="team-positioning"></p>
-      <p class="hint" id="team-stage"></p>
-      <p class="hint"><b id="team-hiring-note"></b></p>
-    </div>
-
     <div class="card">
       <h2>想加入的方向</h2>
       <p class="hint">只分三个大方向；选完后 5 道题会自动适配该方向。</p>
@@ -69,17 +60,18 @@
         </label>
         <label>年级 / 相关经验
           <select id="cand-exp">
-            <option value="大一 / 0-1 年">大一 / 0–1 年</option>
-            <option value="大二 / 0-1 年">大二 / 0–1 年</option>
-            <option value="大三 / 1-2 年">大三 / 1–2 年</option>
-            <option value="大四 / 2-3 年">大四 / 2–3 年</option>
-            <option value="研究生 / 2 年以上">研究生 / 2 年以上</option>
-            <option value="已毕业 / 3 年以上">已毕业 / 3 年以上</option>
+            <option value="大一 / 1 年">大一 / 1 年</option>
+            <option value="大二 / 1 年">大二 / 1 年</option>
+            <option value="大三 / 2 年">大三 / 2 年</option>
+            <option value="大四 / 3 年">大四 / 3 年</option>
+            <option value="研究生 / 3 年以上">研究生 / 3 年以上</option>
           </select>
         </label>
       </div>
       <p class="hint">共 5 题：2 道通用、1 道项目、2 道方向专业题；无标准答案，按第一反应作答。</p>
     </div>
+
+    <div id="mcq-notice" class="notice hidden"></div>
 
     <div id="mcq-list"></div>
 
@@ -92,13 +84,13 @@
   <section id="step3" class="step hidden">
     <div class="card">
       <h2>自我介绍</h2>
-      <p class="hint">不限结构，写你想让团队了解的内容就行。AI 会分析内容，最多可提交 3 次，取最好的一次。</p>
+      <p class="hint">不限结构，写你想让团队了解的内容就行。AI 会分析内容。共 3 次提交机会，只是用来防止刷分，提交 1 次即可进入下一步。</p>
       <textarea id="intro-text" rows="12" maxlength="3000" placeholder="想写什么就写什么：你的经历、做过的事、擅长什么、想加入的原因……"></textarea>
       <div class="row between">
         <span id="intro-count" class="hint">0 / 3000</span>
         <div class="row">
           <button id="btn-score-intro" class="btn primary" type="button">提交并评分</button>
-          <button id="btn-to-step4" class="btn ghost" type="button">跳过</button>
+          <button id="btn-to-step4" class="btn primary" type="button">下一步：AI 面试</button>
         </div>
       </div>
       <p id="intro-tries" class="hint"></p>
@@ -137,7 +129,7 @@
       <p class="hint">
         请把本次面试结果发送给团队，收件人：<b>2160634966@qq.com</b>、<b>2715240991@qq.com</b>
         <button id="btn-copy-to" class="btn small ghost" type="button">复制收件人</button><br>
-        <b>未发送将无法进入后续筛选，可能会失去这次机会。</b>
+        <span class="warn-text">未发送将无法进入后续筛选，可能会失去这次机会。</span>
       </p>
       <div class="row">
         <button id="btn-mail" class="btn primary" type="button">发送邮件给团队（推荐）</button>
@@ -150,9 +142,6 @@
       <p id="enc-status" class="hidden"></p>
     </div>
 
-    <div class="row end">
-      <button id="btn-restart" class="btn ghost" type="button">重新开始</button>
-    </div>
   </section>
 
   <p class="disclaimer" id="disclaimer"></p>
