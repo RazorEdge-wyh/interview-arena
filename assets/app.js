@@ -752,9 +752,16 @@ ${JSON.stringify(pkg)}
       state.fullPkg = await encryptPacket(fullPayload(state.report));
       const compactPkg = await encryptPacket(compactPayload(state.report));
       state.summaryPkg = compactPkg;
-      state.mailtoUrl = `mailto:${recipients()}?subject=${encodeURIComponent(mailSubject())}&body=${encodeURIComponent(mailBodyShort(compactPkg))}`;
+      state.fullCode = `===BEGIN ANALYSIS===\n${JSON.stringify(compactPkg)}\n===END ANALYSIS===`;
+      const r = state.report;
+      const shortBody = '金种子杯 · 菌护禾 团队招募\n'
+        + `同学：${r.name}\n方向：${r.direction}\n综合分：${fmt(r.total, 1)} / 100\n\n`
+        + '完整加密结果已自动复制到剪贴板。\n'
+        + '请在下面按 Ctrl+V 粘贴，然后点发送即可。\n\n'
+        + '[在此粘贴完整加密结果]\n';
+      state.mailtoUrl = `mailto:${recipients()}?subject=${encodeURIComponent(mailSubject())}&body=${encodeURIComponent(shortBody)}`;
       const st = $('#mail-status');
-      if (st && !st.textContent) st.textContent = '准备完成：点「发送邮件给团队」会直接打开邮箱，收件人和完整内容都已填好。';
+      if (st && !st.textContent) st.textContent = '准备完成：点「发送邮件给团队」会打开邮箱并自动复制完整内容。';
     } catch (err) {
       console.warn('prepare mail failed', err);
     }
@@ -762,10 +769,15 @@ ${JSON.stringify(pkg)}
 
   function openMail() {
     if (!state.report) { toast('请先完成评分', 4200, 'err'); return; }
-    if (!state.mailtoUrl || !state.fullPkg) {
+    if (!state.mailtoUrl || !state.fullCode) {
       prepareReportAssets();
       toast('正在准备邮件，请稍等 1 秒再点', 4200, 'err');
       return;
+    }
+    let copied = false;
+    try { copied = copyTextFallback(state.fullCode); } catch (_) {}
+    if (!copied) {
+      try { navigator.clipboard.writeText(state.fullCode); copied = true; } catch (_) {}
     }
     try {
       const a = document.createElement('a');
@@ -775,8 +787,8 @@ ${JSON.stringify(pkg)}
       a.click();
       a.remove();
       const debugMail = new URLSearchParams(location.search).get('debug') === '1';
-      $('#mail-status').textContent = '已打开邮件应用：收件人、主题、内容都填好了，点发送即可。正文里那段很长的乱码是加密后的结果，属正常，不用删改。'
-        + (debugMail ? `（mailto 长度 ${state.mailtoUrl.length}）` : '');
+      $('#mail-status').textContent = '已打开邮件：收件人已填好；完整加密结果已复制到剪贴板，请在邮件正文按 Ctrl+V 粘贴后点发送。'
+        + (debugMail ? `（mailto 长度 ${state.mailtoUrl.length}，复制 ${state.fullCode.length} 字符）` : '');
     } catch (err) {
       toast('打开邮件失败：' + err.message + '；请用「下载完整邮件文件」', 5000, 'err');
     }
