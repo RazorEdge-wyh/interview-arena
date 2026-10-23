@@ -14,9 +14,10 @@
     "355594812@qq.com"
   ],
   "weights": {
-    "mcq": 0.3,
-    "intro": 0.25,
-    "chat": 0.45
+    "mcq": 0.2,
+    "intro": 0.2,
+    "chat": 0.4,
+    "grade": 0.2
   },
   "dimensions": {
     "analysis": {

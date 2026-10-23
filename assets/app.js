@@ -506,16 +506,16 @@ ${text}`;
   }
 
   /* ---------------- 总分 ---------------- */
-  function gradeBonus(exp) {
+  function gradeScore(exp) {
     const map = {
-      '大一 / 1 年': 0,
-      '大二 / 1 年': 1,
-      '大三 / 2 年': 2,
-      '大四 / 3 年': 3,
-      '研究生 / 3 年以上': 4,
+      '大一 / 1 年': 60,
+      '大二 / 1 年': 70,
+      '大三 / 2 年': 80,
+      '大四 / 3 年': 90,
+      '研究生 / 3 年以上': 100,
     };
     const v = map[String(exp || '').trim()];
-    return v === undefined ? 0 : v;
+    return v === undefined ? 60 : v;
   }
 
   function verdictOf(total) {
@@ -538,10 +538,12 @@ ${text}`;
     if (mcq.complete) parts.push({ key: 'mcq', name: '情境测评', score: mcq.total, weight: state.data.weights.mcq });
     if (state.introScore) parts.push({ key: 'intro', name: '自我介绍', score: state.introScore.total, weight: state.data.weights.intro });
     if (state.chatScored) parts.push({ key: 'chat', name: 'AI 面试', score: state.chatScored.overall, weight: state.data.weights.chat });
+    const gScore = gradeScore($('#cand-exp').value);
+    parts.push({ key: 'grade', name: '年级 / 经验', score: gScore, weight: state.data.weights.grade || 0.2 });
     const wsum = parts.reduce((a, p) => a + p.weight, 0) || 1;
-    const baseTotal = parts.reduce((a, p) => a + p.score * (p.weight / wsum), 0);
-    const bonus = gradeBonus($('#cand-exp').value);
-    const total = baseTotal + bonus;
+    const total = parts.reduce((a, p) => a + p.score * (p.weight / wsum), 0);
+    const bonus = gScore * ((state.data.weights.grade || 0.2) / wsum);
+    const baseTotal = total - bonus;
     const dims = dimKeys().map((k) => ({
       key: k, label: state.data.dimensions[k].label, type: state.data.dimensions[k].type, value: mcq.percent[k] ?? 0,
     })).sort((a, b) => a.value - b.value);

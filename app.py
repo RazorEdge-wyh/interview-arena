@@ -143,14 +143,14 @@ def compute_fit(percent: dict) -> list[dict]:
     return sorted(out, key=lambda x: -x["score"])
 
 
-def grade_bonus(exp: str) -> int:
+def grade_score(exp: str) -> int:
     return {
-        "大一 / 1 年": 0,
-        "大二 / 1 年": 1,
-        "大三 / 2 年": 2,
-        "大四 / 3 年": 3,
-        "研究生 / 3 年以上": 4,
-    }.get(str(exp or "").strip(), 0)
+        "大一 / 1 年": 60,
+        "大二 / 1 年": 70,
+        "大三 / 2 年": 80,
+        "大四 / 3 年": 90,
+        "研究生 / 3 年以上": 100,
+    }.get(str(exp or "").strip(), 60)
 
 
 def verdict_of(total: float) -> str:
@@ -367,14 +367,16 @@ if st.button("生成评分", type="primary"):
     else:
         parts = [("情境测评", m["total"], DATA["weights"]["mcq"]),
                  ("自我介绍", st.session_state["intro_score"]["total"], DATA["weights"]["intro"]),
-                 ("AI 面试", st.session_state["chat_scored"]["overall"], DATA["weights"]["chat"])]
+                 ("AI 面试", st.session_state["chat_scored"]["overall"], DATA["weights"]["chat"]),
+                 ("年级 / 经验", grade_score(exp), DATA["weights"].get("grade", 0.2))]
         wsum = sum(p[2] for p in parts) or 1
-        base_total = sum(p[1] * p[2] for p in parts) / wsum
-        total = base_total + grade_bonus(exp)
+        total = sum(p[1] * p[2] for p in parts) / wsum
+        bonus = grade_score(exp) * (DATA["weights"].get("grade", 0.2) / wsum)
+        base_total = total - bonus
         report = {
             "candidate": {"name": name or "匿名候选人", "contact": contact, "direction": d["name"], "directionId": dir_id, "exp": exp},
             "scores": {
-                "total": round(total, 1), "baseTotal": round(base_total, 1), "gradeBonus": grade_bonus(exp), "verdict": verdict_of(total), "verdict_public": public_verdict(total),
+                "total": round(total, 1), "baseTotal": round(base_total, 1), "gradeBonus": round(bonus, 1), "verdict": verdict_of(total), "verdict_public": public_verdict(total),
                 "parts": [{"name": p[0], "score": round(p[1], 1), "weight": p[2]} for p in parts],
                 "dims": [{"label": DATA["dimensions"][k]["label"], "type": DATA["dimensions"][k]["type"], "value": round(m["percent"][k], 1)} for k in dim_keys()],
                 "fit": compute_fit(m["percent"]),
