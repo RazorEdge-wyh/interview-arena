@@ -1,4 +1,4 @@
-/* 金种子杯 · 菌护禾 · 团队招募评估（v6）
+﻿/* 金种子杯 · 菌护禾 · 团队招募评估（v6）
  * 项目介绍（可跳过）→ 5 题（2 通用 + 1 项目 + 2 方向专业）→ 自我介绍（最多 3 次）→ AI 真实多轮面试 → 评分
  * 页面只展示分数；完整分析随邮件发给团队
  */
@@ -84,17 +84,18 @@
       model: s.model || cfg.model || DEFAULT_MODEL,
       apiKey: s.apiKey || cfg.apiKey || '',
       apiBase: (s.apiBase || cfg.apiBase || '').replace(/\/+$/, ''),
+      apiEndpoint: s.apiEndpoint || cfg.apiEndpoint || '',
       apiSecret: s.apiSecret || cfg.apiSecret || '',
     };
   }
   function hasAI() { return !!getSettings().apiKey; }
 
   /* ---------------- 后端发信 ---------------- */
-  function backendReady() { return !!getSettings().apiBase; }
+  function backendReady() { const s = getSettings(); return !!(s.apiBase || s.apiEndpoint); }
 
   async function backendSend(subject, text) {
     const s = getSettings();
-    const url = s.apiBase + '/api/send';
+    const url = s.apiEndpoint || (s.apiBase + '/api/send');
     const headers = { 'Content-Type': 'application/json' };
     if (s.apiSecret) headers['x-api-secret'] = s.apiSecret;
     const ctrl = new AbortController();
