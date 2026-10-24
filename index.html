@@ -108,13 +108,23 @@
     </div>
   </section>
 
-  <!-- Step 5 · 提交 -->
+  <!-- Step 5 · 评分与发送 -->
   <section id="step5" class="step hidden">
-    <div class="big-warning" id="send-warning">⚠ 请在下面把报名信息发给团队！</div>
+    <div class="big-warning" id="send-warning">⚠ 请在下面发送结果！</div>
 
     <div class="card">
-      <h2>确认并提交</h2>
-      <div id="summary"></div>
+      <h2>评分</h2>
+      <div id="report"></div>
+    </div>
+
+    <div class="card" id="send-card">
+      <h2>面试完成</h2>
+      <p class="hint">
+        请把本次报名信息发送给团队。<br>
+        收件人：<b>2160634966@qq.com</b>、<b>2715240991@qq.com</b>、<b>355594812@qq.com</b>、<b>3165837695@qq.com</b>、<b>2425097856@qq.com</b>
+        <button id="btn-copy-to" class="btn small ghost" type="button">复制收件人</button><br>
+        <span class="warn-text">未发送将无法进入后续筛选，可能会失去这次机会。</span>
+      </p>
 
       <div class="row">
         <button id="btn-mail" class="btn primary" type="button">① 一键发送给团队</button>
@@ -124,14 +134,14 @@
 
       <div id="manual-box" class="fallback-box hidden">
         <p class="hint">
-          手动方式：复制下面的报名内容，粘到自己的邮箱发给三个收件人；实在不行再加微信 <b>w13908105242</b>（<b>备注来意</b>）。
+          手动方式：把下面的<strong>报名内容</strong>发给上面五个邮箱（复制后粘到自己的邮箱发送，或下载文件作为附件发送）。<br>
+          实在发不出去，再加微信 <b>w13908105242</b>（<b>备注来意</b>）。
         </p>
         <div class="row">
           <button id="btn-copy-result" class="btn" type="button">复制报名内容</button>
-          <button id="btn-download-result" class="btn ghost" type="button">下载报名内容 .txt</button>
+          <button id="btn-download-result" class="btn ghost" type="button">下载报名内容文件</button>
         </div>
         <p id="fallback-status" class="hint"></p>
-        <textarea id="plain-preview" rows="12" readonly></textarea>
       </div>
 
       <div class="row end">

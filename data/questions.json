@@ -11,12 +11,13 @@
   "mailTo": [
     "2160634966@qq.com",
     "2715240991@qq.com",
-    "355594812@qq.com"
+    "355594812@qq.com",
+    "3165837695@qq.com",
+    "2425097856@qq.com"
   ],
   "weights": {
-    "mcq": 0.4,
-    "intro": 0.25,
-    "grade": 0.35
+    "mcq": 0.7,
+    "grade": 0.3
   },
   "dimensions": {
     "analysis": {

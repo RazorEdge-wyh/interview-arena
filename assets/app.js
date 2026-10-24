@@ -1,5 +1,5 @@
 /* 金种子杯 · 菌护禾 · 团队招募（极简版）
- * 项目介绍 → 5 道选择题 + 基本信息 → 自我介绍 → 2 道简答题 → 确认并发送
+ * 项目介绍 → 5 道选择题 + 基本信息 → 自我介绍 → 2 道简答题 → 评分与发送
  * 不调用任何 AI、不加密：直接把报名信息明文发给团队
  */
 (() => {
@@ -15,7 +15,7 @@
     intro: '',
     short: {},
     contact: '',
-    sent: false,
+    report: null,
   };
 
   const $ = (s, r = document) => r.querySelector(s);
@@ -24,6 +24,8 @@
   function esc(s) {
     return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
+  const fmt = (n, d = 0) => (Number(n) || 0).toFixed(d).replace(/\.0$/, '');
+  const clamp = (n, a, b) => Math.min(b, Math.max(a, Number(n) || 0));
 
   function toast(msg, ms = 4200, type = '') {
     const el = $('#toast');
@@ -85,7 +87,7 @@
     ? state.data.shortQuestions
     : [
         { id: 's1', title: '你为什么想加入菌护禾？', hint: '1–3 句话即可' },
-        { id: 's2', title: '你能投入多少时间？希望负责哪块？', hint: '例如：每周 6 小时，偏硬件/试验/运营' },
+        { id: 's2', title: '你能投入多少时间？希望负责哪一块？', hint: '例如：每周 6 小时，偏试验 / 硬件 / 运营' },
       ];
 
   /* ---------------- 渲染 ---------------- */
@@ -169,18 +171,116 @@
     });
   }
 
+  /* ---------------- 评分（本地规则，不调用 AI） ---------------- */
+  function mcqScore() {
+    const qs = questionsFor(state.direction);
+    const maxTotal = {};
+    qs.forEach((q) => (q.options || []).forEach((o) => {
+      Object.entries(o.scores || {}).forEach(([k, v]) => { maxTotal[k] = Math.max(maxTotal[k] || 0, Number(v) || 0); });
+    }));
+    const got = {};
+    Object.keys(maxTotal).forEach((k) => { got[k] = 0; });
+    let answered = 0;
+    qs.forEach((q) => {
+      const idx = state.answers[q.id];
+      if (idx === undefined) return;
+      answered += 1;
+      Object.entries((q.options[idx] && q.options[idx].scores) || {}).forEach(([k, v]) => {
+        got[k] = (got[k] || 0) + (Number(v) || 0);
+      });
+    });
+    const percent = {};
+    Object.keys(maxTotal).forEach((k) => {
+      percent[k] = maxTotal[k] ? clamp((got[k] / maxTotal[k]) * 100, 0, 100) : 0;
+    });
+    const keys = Object.keys(percent);
+    const total = keys.length ? keys.reduce((a, k) => a + percent[k], 0) / keys.length : 0;
+    return { complete: answered === qs.length, answered, total: Math.round(total * 10) / 10, percent };
+  }
+
+  function gradeScore(exp) {
+    const map = {
+      '大一 / 1 年': 60,
+      '大二 / 1 年': 70,
+      '大三 / 2 年': 80,
+      '大四 / 3 年': 90,
+      '研究生 / 3 年以上': 100,
+    };
+    const v = map[String(exp || '').trim()];
+    return v === undefined ? 60 : v;
+  }
+
+  function buildReport() {
+    const mcq = mcqScore();
+    const g = gradeScore($('#cand-exp') ? $('#cand-exp').value : '');
+    const w = state.data.weights || { mcq: 0.7, grade: 0.3 };
+    const wmcq = Number(w.mcq) || 0;
+    const wgrade = Number(w.grade) || 0;
+    const wsum = (wmcq + wgrade) || 1;
+    const total = mcq.total * (wmcq / wsum) + g * (wgrade / wsum);
+    const dims = Object.keys(state.data.dimensions || {}).map((k) => ({
+      key: k,
+      label: state.data.dimensions[k].label,
+      type: state.data.dimensions[k].type,
+      value: mcq.percent[k] ?? 0,
+    })).sort((a, b) => a.value - b.value);
+    return {
+      name: (($('#cand-name') && $('#cand-name').value) || '同学').trim(),
+      contact: (($('#cand-contact') && $('#cand-contact').value) || '').trim(),
+      direction: dir().name,
+      exp: $('#cand-exp') ? $('#cand-exp').value : '',
+      total: clamp(total, 0, 100),
+      grade: g,
+      mcq,
+      parts: [
+        { name: '选择题', score: mcq.total, weight: wmcq },
+        { name: '年级 / 经验', score: g, weight: wgrade },
+      ],
+      wsum,
+      dims,
+      verdict: total >= 75 ? '推荐进入下一轮' : (total >= 60 ? '待定，建议再聊聊' : '已完成评估，请等待团队联系'),
+    };
+  }
+
+  function bar(label, value) {
+    const v = clamp(Number(value) || 0, 0, 100);
+    return `<div class="score-row">
+      <span class="score-label">${esc(label)}</span>
+      <span class="score-bar"><i style="width:${v}%"></i></span>
+      <span class="score-val">${fmt(v, 1)}</span>
+    </div>`;
+  }
+
+  function renderReport() {
+    const r = buildReport();
+    state.report = r;
+    const partsHtml = r.parts.map((p) => `<div class="stat"><b>${fmt(p.score, 1)}</b><span>${esc(p.name)} · 权重 ${Math.round((p.weight / r.wsum) * 100)}%</span></div>`).join('');
+    const dimsHtml = r.dims.map((d) => bar(`${d.label}（${d.type === 'ability' ? '能力' : '性格'}）`, d.value)).join('');
+    $('#report').innerHTML = `
+      <div class="big-score">
+        <b>${fmt(r.total, 1)}</b><span>/ 100 综合参考分</span>
+        <span class="verdict">${esc(r.verdict)}</span>
+      </div>
+      <p class="hint">${esc(r.name)} · ${esc(r.direction)} · ${esc(r.exp)} · ${new Date().toLocaleString('zh-CN')}</p>
+      <div class="split">${partsHtml}</div>
+      <h3>四维画像</h3>
+      <div class="dim-grid">${dimsHtml}</div>
+      <p class="note">这里只展示分数；完整报名信息会随邮件发送给团队。</p>`;
+  }
+
   /* ---------------- 内容拼装 ---------------- */
   function buildText() {
-    const name = (($('#cand-name') && $('#cand-name').value) || '同学').trim();
-    const contact = (($('#cand-contact') && $('#cand-contact').value) || '').trim();
-    const exp = $('#cand-exp') ? $('#cand-exp').value : '';
+    const r = state.report || buildReport();
     const lines = [];
     lines.push('【金种子杯 · 菌护禾 团队招募 · 报名信息】');
     lines.push('');
-    lines.push('姓名：' + name);
-    lines.push('联系方式：' + contact);
-    lines.push('想加入方向：' + dir().name);
-    lines.push('年级 / 经验：' + exp);
+    lines.push('姓名：' + r.name);
+    lines.push('联系方式：' + r.contact);
+    lines.push('想加入方向：' + r.direction);
+    lines.push('年级 / 经验：' + r.exp);
+    lines.push('');
+    lines.push('综合参考分：' + fmt(r.total, 1) + ' / 100（选择题 ' + fmt(r.mcq.total, 1) + ' · 年级 ' + fmt(r.grade, 1) + '）');
+    lines.push('四维画像：' + r.dims.map((d) => d.label + ' ' + fmt(d.value, 0)).join('，'));
     lines.push('');
     lines.push('一、选择题（共 ' + questionsFor(state.direction).length + ' 题）');
     questionsFor(state.direction).forEach((q, i) => {
@@ -203,8 +303,19 @@
   }
 
   function mailSubject() {
-    const name = (($('#cand-name') && $('#cand-name').value) || '同学').trim();
-    return '【金种子杯·菌护禾】报名：' + name + ' · ' + dir().name;
+    const r = state.report || buildReport();
+    return '【金种子杯·菌护禾】报名：' + r.name + ' · ' + r.direction;
+  }
+
+  const recipients = () => (state.data && state.data.mailTo ? state.data.mailTo : []).join(',');
+
+  async function copyRecipients() {
+    try {
+      await navigator.clipboard.writeText(recipients());
+      toast('已复制收件人：' + recipients(), 4200, 'ok');
+    } catch (_) {
+      toast('复制失败，请手动复制：' + recipients(), 5000, 'err');
+    }
   }
 
   /* ---------------- 发送 ---------------- */
@@ -247,8 +358,7 @@
         new Promise((_, rej) => setTimeout(() => rej(new Error('TIMEOUT')), 20000)),
       ]);
       ok = true;
-      state.sent = true;
-      $('#mail-status').textContent = '✅ 已发送到团队邮箱（2160634966 / 2715240991 / 355594812），可以关闭页面了。';
+      $('#mail-status').textContent = '✅ 已发送到团队邮箱（5 位收件人），可以关闭页面了。';
       toast('已发送到团队邮箱', 5000, 'ok');
       btn.textContent = '已发送';
       btn.disabled = true;
@@ -258,8 +368,6 @@
       toast(m + '，已切换为手动方式', 6000, 'err');
       const mb = $('#manual-box');
       if (mb) { mb.classList.remove('hidden'); mb.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
-      const prev = $('#plain-preview');
-      if (prev) prev.value = text;
     } finally {
       if (!ok) { btn.disabled = false; btn.textContent = '① 一键发送给团队'; }
     }
@@ -283,19 +391,19 @@
     }
     const st = $('#fallback-status');
     if (ok) {
-      if (st) st.textContent = '已复制。请粘到自己的邮箱，发给 2160634966@qq.com、2715240991@qq.com、355594812@qq.com。';
+      if (st) st.textContent = '已复制。请粘到自己的邮箱，发给上面五个邮箱。';
       toast('已复制报名内容', 4200, 'ok');
     } else {
-      if (st) st.textContent = '复制失败，请手动选择下方文本复制。';
+      if (st) st.textContent = '复制失败，请手动选中内容复制。';
     }
   }
 
   function downloadPlain() {
     const text = buildText();
-    const name = (($('#cand-name') && $('#cand-name').value) || '同学').trim();
+    const r = state.report || buildReport();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
-    a.download = '菌护禾-报名-' + name + '-' + Date.now() + '.txt';
+    a.download = '菌护禾-报名-' + r.name + '-' + Date.now() + '.txt';
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -314,25 +422,11 @@
       li.classList.toggle('active', k === n);
       li.classList.toggle('done', k < n);
     });
-    if (n === 5) renderSummary();
+    if (n === 5) {
+      renderReport();
+      setTimeout(() => { const r = document.querySelector('#report'); if (r) r.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 60);
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  }
-
-  function renderSummary() {
-    const name = (($('#cand-name') && $('#cand-name').value) || '同学').trim();
-    const contact = (($('#cand-contact') && $('#cand-contact').value) || '').trim();
-    const rows = [
-      ['姓名', name],
-      ['联系方式', contact],
-      ['想加入方向', dir().name],
-      ['年级 / 经验', $('#cand-exp') ? $('#cand-exp').value : ''],
-      ['选择题', '已答 ' + Object.keys(state.answers).length + ' / ' + questionsFor(state.direction).length],
-      ['自我介绍', (($('#intro-text') ? $('#intro-text').value : '').trim().length) + ' 字'],
-      ['简答题', shortQuestions().filter((q) => (state.short[q.id] || '').trim()).length + ' / ' + shortQuestions().length + ' 已填'],
-    ];
-    $('#summary').innerHTML = rows.map(([k, v]) => `<div class="sum-row"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('');
-    const prev = $('#plain-preview');
-    if (prev) prev.value = buildText();
   }
 
   function requireContact() {
@@ -355,7 +449,7 @@
     state.intro = '';
     state.short = {};
     state.contact = '';
-    state.sent = false;
+    state.report = null;
     try { localStorage.removeItem(DRAFT_KEY); } catch (_) {}
     $('#cand-name').value = '';
     $('#cand-contact').value = '';
@@ -417,19 +511,16 @@
     });
 
     $('#btn-mail').addEventListener('click', sendNow);
+    if ($('#btn-copy-to')) $('#btn-copy-to').addEventListener('click', copyRecipients);
     $('#btn-manual').addEventListener('click', () => {
       const box = $('#manual-box');
       if (!box) return;
       box.classList.toggle('hidden');
-      if (!box.classList.contains('hidden')) {
-        const prev = $('#plain-preview');
-        if (prev) prev.value = buildText();
-        box.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
+      if (!box.classList.contains('hidden')) box.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
     $('#btn-copy-result').addEventListener('click', copyPlain);
     $('#btn-download-result').addEventListener('click', downloadPlain);
-    $('#btn-restart').addEventListener('click', resetAll);
+    if ($('#btn-restart')) $('#btn-restart').addEventListener('click', resetAll);
   }
 
   /* ---------------- 启动 ---------------- */
