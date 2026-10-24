@@ -1,0 +1,185 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>金种子杯 · 菌护禾 · 团队招募</title>
+<meta name="description" content="湖南科技大学学生团队 · 金种子杯项目菌护禾的队友招募评估：项目介绍、5 道情境题、自我介绍、AI 面试。" />
+<link rel="stylesheet" href="assets/styles.css?v=20261023h" />
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div>
+      <h1>金种子杯</h1>
+      <p class="sub">菌护禾 · 团队招募 <span class="dot">·</span> 湖南科技大学</p>
+    </div>
+  </div>
+</header>
+
+<main>
+  <nav class="stepper" aria-label="步骤">
+    <ol>
+      <li data-step="1" class="active"><span>01</span>项目介绍</li>
+      <li data-step="2"><span>02</span>情境测评</li>
+      <li data-step="3"><span>03</span>自我介绍</li>
+      <li data-step="4"><span>04</span>AI 面试</li>
+      <li data-step="5"><span>05</span>评分</li>
+    </ol>
+  </nav>
+
+  <!-- Step 1 · 项目介绍 -->
+  <section id="step1" class="step">
+    <div class="card">
+      <h2 id="project-title">项目介绍</h2>
+      <p class="hint" id="project-lead"></p>
+      <div id="project-intro"></div>
+      <div class="row between intro-actions">
+        <button id="btn-start-eval" class="btn primary" type="button">我已了解，开始测评</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 2 · 情境测评 -->
+  <section id="step2" class="step hidden">
+    <div class="card">
+      <h2>想加入的方向</h2>
+      <p class="hint">只分三个大方向；选完后 5 道题会自动适配该方向。</p>
+      <div id="direction-cards" class="role-grid"></div>
+    </div>
+
+    <div class="card">
+      <h2>基本信息</h2>
+      <div class="grid-3">
+        <label>姓名 / 昵称
+          <input id="cand-name" type="text" placeholder="例如：小李" autocomplete="off" />
+        </label>
+        <label>想加入的方向
+          <select id="cand-direction"></select>
+        </label>
+        <label>联系方式（手机号 / 微信）<span class="req">*必填</span>
+          <input id="cand-contact" type="text" required placeholder="必填：手机号或微信号，团队要通过它联系你" autocomplete="off" />
+          <span id="contact-hint" class="hint">必填项：不填无法进入下一步</span>
+        </label>
+        <label>年级 / 相关经验
+          <select id="cand-exp">
+            <option value="大一 / 1 年">大一 / 1 年</option>
+            <option value="大二 / 1 年">大二 / 1 年</option>
+            <option value="大三 / 2 年">大三 / 2 年</option>
+            <option value="大四 / 3 年">大四 / 3 年</option>
+            <option value="研究生 / 3 年以上">研究生 / 3 年以上</option>
+          </select>
+        </label>
+      </div>
+      <p class="hint">共 5 题：2 道通用、1 道项目、2 道方向专业题；无标准答案，按第一反应作答。联系方式会随结果一起发给团队，请填真实可联系的。</p>
+    </div>
+
+    <div id="mcq-notice" class="notice hidden"></div>
+
+    <div id="mcq-list"></div>
+
+    <div class="row end">
+      <button id="btn-to-step3" class="btn primary" type="button">下一步</button>
+    </div>
+  </section>
+
+  <!-- Step 3 · 自我介绍 -->
+  <section id="step3" class="step hidden">
+    <div class="card">
+      <h2>自我介绍</h2>
+      <p class="hint">不限结构，写你想让团队了解的内容就行。AI 会分析内容。共 3 次提交机会，提交 1 次即可进入下一步。</p>
+      <textarea id="intro-text" rows="12" maxlength="3000" placeholder="想写什么就写什么：你的经历、做过的事、擅长什么、想加入的原因……"></textarea>
+      <div class="row between">
+        <span id="intro-count" class="hint">0 / 3000</span>
+        <div class="row">
+          <button id="btn-score-intro" class="btn primary" type="button">提交并评分</button>
+          <button id="btn-to-step4" class="btn primary" type="button">下一步：AI 面试</button>
+        </div>
+      </div>
+      <p id="intro-tries" class="hint"></p>
+      <div id="intro-result" class="result hidden"></div>
+    </div>
+  </section>
+
+  <!-- Step 4 · AI 面试 -->
+  <section id="step4" class="step hidden">
+    <div class="card">
+      <h2>AI 面试</h2>
+      <p class="hint">AI 面试官会根据你的自我介绍和方向连续追问 4 轮，像聊天一样作答即可；结束后由 AI 打分。</p>
+      <div class="row">
+        <button id="btn-start-chat" class="btn primary" type="button">开始面试</button>
+        <button id="btn-finish-chat" class="btn ghost" type="button" disabled>结束面试并评分</button>
+        <span id="chat-status" class="hint"></span>
+      </div>
+      <div id="chat-log" class="chat-log"></div>
+      <div class="chat-input-row">
+        <textarea id="chat-input" rows="3" placeholder="输入你的回答（Enter 发送，Shift+Enter 换行）" disabled></textarea>
+        <button id="btn-send-chat" class="btn primary" type="button" disabled>发送</button>
+      </div>
+      <div id="chat-result" class="result hidden"></div>
+    </div>
+  </section>
+
+  <!-- Step 5 · 评分 -->
+  <section id="step5" class="step hidden">
+    <div class="big-warning" id="send-warning">⚠ 请在下面发送结果！</div>
+
+    <div class="card">
+      <h2>评分</h2>
+      <div id="report"></div>
+    </div>
+
+    <div class="card" id="send-card">
+      <h2>面试完成</h2>
+      <p class="hint">
+        请把本次面试结果发送给团队。<br>
+        收件人：<b>2160634966@qq.com</b>、<b>2715240991@qq.com</b>、<b>355594812@qq.com</b>
+        <button id="btn-copy-to" class="btn small ghost" type="button">复制收件人</button><br>
+        <span class="warn-text">未发送将无法进入后续筛选，可能会失去这次机会。</span>
+      </p>
+
+      <div class="row">
+        <button id="btn-mail" class="btn primary" type="button">① 一键发送给团队</button>
+        <button id="btn-manual" class="btn ghost" type="button">② 手动发送</button>
+      </div>
+      <p id="mail-status" class="hint"></p>
+
+      <div id="manual-box" class="fallback-box hidden">
+        <p class="hint">
+          手动方式：把<strong>加密结果</strong>发给上面三个邮箱（复制后粘到自己的邮箱发送，或下载文件作为附件发送）。<br>
+          实在发不出去，再加微信 <b>w13908105242</b>（<b>备注来意</b>）。团队在结果查看页粘贴即可看，不会直接显示分析内容。
+        </p>
+        <p class="hint">
+          发送时内容里会有一段很长的、看起来像乱码的内容，这是<b>正常的</b>，它就是加密后的结果，<b>不用删除或修改</b>。
+        </p>
+        <div class="row">
+          <button id="btn-copy-result" class="btn" type="button">复制加密结果</button>
+          <button id="btn-download-result" class="btn ghost" type="button">下载加密结果文件</button>
+          <button id="btn-eml" class="btn ghost small" type="button">下载完整邮件文件</button>
+          <button id="btn-copy-mail" class="btn ghost small" type="button">复制邮件内容</button>
+        </div>
+        <p id="fallback-status" class="hint"></p>
+      </div>
+      <textarea id="mail-preview" class="hidden"></textarea>
+      <textarea id="enc-output" class="hidden"></textarea>
+      <p id="enc-status" class="hidden"></p>
+    </div>
+
+  </section>
+
+  <p class="disclaimer" id="disclaimer"></p>
+</main>
+
+<footer class="footer">
+  <span>湖南科技大学 · 金种子杯</span>
+  <span>·</span>
+  <span>菌护禾团队</span>
+</footer>
+
+<div id="toast" class="toast hidden" role="status"></div>
+
+<script src="assets/config.js?v=20261023h"></script>
+<script src="assets/app.js?v=20261023h"></script>
+</body>
+</html>

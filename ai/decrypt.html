@@ -1,0 +1,62 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>菌护禾 · 面试结果查看</title>
+<meta name="description" content="粘贴邮件全文即可查看菌护禾面试结果（团队内部使用，无需密钥）。" />
+<link rel="stylesheet" href="assets/styles.css" />
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div>
+      <h1>面试结果查看</h1>
+      <p class="sub">菌护禾 · 团队内部使用</p>
+    </div>
+  </div>
+  <div class="topbar-right">
+    <a class="btn small ghost" href="./">返回招募页</a>
+  </div>
+</header>
+
+<main>
+  <p class="hint">把同学发来的邮件全文直接粘贴到下面，点「查看结果」即可，不需要密钥。</p>
+
+  <section class="card">
+    <h2>1. 粘贴邮件全文</h2>
+    <textarea id="pkg-text" rows="10" placeholder="把整封邮件（包括 ===BEGIN ANALYSIS=== 前后所有文字）粘贴到这里。"></textarea>
+    <div class="row">
+      <button id="btn-clear-pkg" class="btn small ghost" type="button">清空</button>
+    </div>
+  </section>
+
+  <section class="card">
+    <div class="row">
+      <button id="btn-decrypt" class="btn primary" type="button">查看结果</button>
+      <button id="btn-print" class="btn ghost" type="button" disabled>打印 / 存 PDF</button>
+      <button id="btn-save-json" class="btn ghost" type="button" disabled>下载明文 JSON</button>
+    </div>
+    <p id="status" class="hint"></p>
+  </section>
+
+  <details class="adv">
+    <summary>旧版报告（需要私钥）</summary>
+    <p class="hint">只有 2026-10-23 之前生成的旧格式邮件才需要；新邮件不需要填。</p>
+    <textarea id="key-text" rows="5" placeholder="-----BEGIN PRIVATE KEY-----&#10;…&#10;-----END PRIVATE KEY-----"></textarea>
+  </details>
+
+  <section class="card hidden" id="result-card">
+    <h2>面试结果</h2>
+    <div id="result"></div>
+  </section>
+
+  <p class="disclaimer">团队内部工具，请勿外传。</p>
+</main>
+
+<div id="toast" class="toast hidden" role="status"></div>
+
+<script src="assets/decrypt.js"></script>
+</body>
+</html>

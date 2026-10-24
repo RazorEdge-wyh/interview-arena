@@ -1,11 +1,11 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>金种子杯 · 菌护禾 · 团队招募</title>
-<meta name="description" content="湖南科技大学学生团队 · 金种子杯项目菌护禾的队友招募评估：项目介绍、5 道情境题、自我介绍、AI 面试。" />
-<link rel="stylesheet" href="assets/styles.css?v=20261023h" />
+<meta name="description" content="湖南科技大学学生团队 · 金种子杯项目菌护禾的队友招募评估：项目介绍、5 道情境题、自我介绍、评分。" />
+<link rel="stylesheet" href="assets/styles.css?v=20261024a" />
 </head>
 <body>
 
@@ -24,8 +24,7 @@
       <li data-step="1" class="active"><span>01</span>项目介绍</li>
       <li data-step="2"><span>02</span>情境测评</li>
       <li data-step="3"><span>03</span>自我介绍</li>
-      <li data-step="4"><span>04</span>AI 面试</li>
-      <li data-step="5"><span>05</span>评分</li>
+      <li data-step="4"><span>04</span>评分</li>
     </ol>
   </nav>
 
@@ -88,13 +87,13 @@
   <section id="step3" class="step hidden">
     <div class="card">
       <h2>自我介绍</h2>
-      <p class="hint">不限结构，写你想让团队了解的内容就行。AI 会分析内容。共 3 次提交机会，提交 1 次即可进入下一步。</p>
+      <p class="hint">不限结构，写你想让团队了解的内容就行。按本地规则评分。共 3 次提交机会，提交 1 次即可进入下一步。</p>
       <textarea id="intro-text" rows="12" maxlength="3000" placeholder="想写什么就写什么：你的经历、做过的事、擅长什么、想加入的原因……"></textarea>
       <div class="row between">
         <span id="intro-count" class="hint">0 / 3000</span>
         <div class="row">
           <button id="btn-score-intro" class="btn primary" type="button">提交并评分</button>
-          <button id="btn-to-step4" class="btn primary" type="button">下一步：AI 面试</button>
+          <button id="btn-to-step4" class="btn primary" type="button">下一步：评分</button>
         </div>
       </div>
       <p id="intro-tries" class="hint"></p>
@@ -102,27 +101,8 @@
     </div>
   </section>
 
-  <!-- Step 4 · AI 面试 -->
+  <!-- Step 4 · 评分 -->
   <section id="step4" class="step hidden">
-    <div class="card">
-      <h2>AI 面试</h2>
-      <p class="hint">AI 面试官会根据你的自我介绍和方向连续追问 4 轮，像聊天一样作答即可；结束后由 AI 打分。</p>
-      <div class="row">
-        <button id="btn-start-chat" class="btn primary" type="button">开始面试</button>
-        <button id="btn-finish-chat" class="btn ghost" type="button" disabled>结束面试并评分</button>
-        <span id="chat-status" class="hint"></span>
-      </div>
-      <div id="chat-log" class="chat-log"></div>
-      <div class="chat-input-row">
-        <textarea id="chat-input" rows="3" placeholder="输入你的回答（Enter 发送，Shift+Enter 换行）" disabled></textarea>
-        <button id="btn-send-chat" class="btn primary" type="button" disabled>发送</button>
-      </div>
-      <div id="chat-result" class="result hidden"></div>
-    </div>
-  </section>
-
-  <!-- Step 5 · 评分 -->
-  <section id="step5" class="step hidden">
     <div class="big-warning" id="send-warning">⚠ 请在下面发送结果！</div>
 
     <div class="card">
@@ -179,7 +159,7 @@
 
 <div id="toast" class="toast hidden" role="status"></div>
 
-<script src="assets/config.js?v=20261023h"></script>
-<script src="assets/app.js?v=20261023h"></script>
+<script src="assets/config.js?v=20261024a"></script>
+<script src="assets/app.js?v=20261024a"></script>
 </body>
 </html>

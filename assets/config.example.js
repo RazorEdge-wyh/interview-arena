@@ -10,7 +10,6 @@
 window.__IA_CONFIG__ = {
   baseUrl: 'https://api.deepseek.com',
   model: 'deepseek-flash',
-  apiKey: '',
   apiBase: '',
   apiEndpoint: '',
   apiSecret: '',

@@ -88,7 +88,6 @@
       apiSecret: s.apiSecret || cfg.apiSecret || '',
     };
   }
-  function hasAI() { return !!getSettings().apiKey; }
 
   /* ---------------- 后端发信 ---------------- */
   function backendReady() { const s = getSettings(); return !!(s.apiBase || s.apiEndpoint); }
@@ -238,33 +237,7 @@
     }).sort((a, b) => b.score - a.score);
   }
 
-  /* ---------------- AI 调用 ---------------- */
-  async function callAI(messages, opts = {}) {
-    const s = getSettings();
-    if (!s.apiKey) throw new Error('NO_KEY');
-    const body = { model: s.model, messages, temperature: opts.temperature ?? 0.4, max_tokens: opts.maxTokens ?? 900 };
-    if (opts.json !== false) body.response_format = { type: 'json_object' };
-    const res = await fetch(s.baseUrl + '/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + s.apiKey },
-      body: JSON.stringify(body),
-    });
-    if (!res.ok) {
-      const t = await res.text().catch(() => '');
-      throw new Error(`AI ${res.status}: ${t.slice(0, 160)}`);
-    }
-    const data = await res.json();
-    const text = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '';
-    if (opts.json !== false) {
-      try { return JSON.parse(text); } catch (_) {
-        const m = text.match(/\{[\s\S]*\}/);
-        if (m) return JSON.parse(m[0]);
-        throw new Error('AI 返回不是 JSON');
-      }
-    }
-    return text.trim();
-  }
-  const callChat = (messages, maxTokens = 500) => callAI(messages, { json: false, temperature: 0.6, maxTokens });
+  /* ---------------- 评分（本地规则，不调用 AI） ---------------- */
 
   /* ---------------- 自我介绍 ---------------- */
   function heuristicIntro(text) {
@@ -282,29 +255,7 @@
 
   async function scoreIntro(text) {
     if (!text || text.trim().length < 30) throw new Error('至少写 30 字');
-    const d = dir();
-    if (!hasAI()) { toast('AI 暂不可用，使用本地规则评分'); return heuristicIntro(text); }
-    const rubric = state.data.introRubric.map((r) => `- ${r.key}（${r.label}）：${r.desc}`).join('\n');
-    const prompt = `你是菌护禾团队的面试官。请按 4 个维度给这位同学的自我介绍打分（每维 0–25 分），只输出 JSON。
-团队：${state.data.team.name}——${state.data.team.positioning}（湖南科技大学学生团队）
-方向：${d.name}。要求：${(d.mustHave || []).join('、')}
-维度：
-${rubric}
-
-输出格式：
-{"dimensions":{"structure":{"score":0,"reason":"引用原文依据"},"specificity":{"score":0,"reason":""},"selfAwareness":{"score":0,"reason":""},"roleFit":{"score":0,"reason":""}},"total":0,"highlights":["2-3条"],"risks":["2-3条"],"suggestions":["2-3条改进"]}
-要求：分数克制、理由引用原文关键词；total = 四维之和（0–100）；不要输出 JSON 以外内容。
-
-同学：${$('#cand-name').value || '同学'}；方向 ${d.name}；${$('#cand-exp').value}
-自我介绍：
-${text}`;
-    const out = await callAI([
-      { role: 'system', content: '你是严格但公正的面试官，只输出合法 JSON。' },
-      { role: 'user', content: prompt },
-    ]);
-    const dims = out.dimensions || {};
-    const total = clamp(Math.round(Number(out.total) || Object.values(dims).reduce((a, x) => a + (Number(x && x.score) || 0), 0)), 0, 100);
-    return { ...out, total, mode: 'ai' };
+    return heuristicIntro(text);
   }
 
   function renderIntroResult(r) {
@@ -330,207 +281,6 @@ ${text}`;
     btn.disabled = false;
     btn.textContent = state.introTries === 0 ? '提交并评分' : `再提交一次（可选，第 ${state.introTries + 1} / ${MAX_INTRO_TRIES} 次）`;
     $('#intro-tries').textContent = `共 3 次提交机会，提交 1 次即可进入下一步；还剩 ${left} 次。`;
-  }
-
-  /* ---------------- 聊天（AI 面试） ---------------- */
-  function chatPromptReplace(tpl) {
-    const d = dir();
-    return tpl
-      .replace(/\{direction\}/g, d.name)
-      .replace(/\{team\}/g, `${state.data.team.name}：${state.data.team.positioning}（${state.data.team.stage}）`)
-      .replace(/\{mustHave\}/g, (d.mustHave || []).join('、'))
-      .replace(/\{intro\}/g, state.intro || '（未填写）')
-      .replace(/\{rounds\}/g, String(state.data.chat.rounds));
-  }
-
-  function renderChatLog() {
-    const box = $('#chat-log');
-    box.innerHTML = state.chat.map((m) => `
-      <div class="chat-msg ${m.role === 'assistant' ? 'assistant' : 'user'}">
-        <div class="chat-who">${m.role === 'assistant' ? '面试官' : '我'}</div>
-        <div class="chat-text">${esc(m.content).replace(/\n/g, '<br>')}</div>
-      </div>`).join('');
-    box.scrollTop = box.scrollHeight;
-  }
-
-  const questionCount = () => state.chat.filter((m) => m.role === 'assistant' && m.round).length;
-  const answerCount = () => state.chat.filter((m) => m.role === 'user').length;
-  const pushAssistant = (text, round) => state.chat.push({ role: 'assistant', content: text, round: round || null });
-  const setChatStatus = (t) => { $('#chat-status').textContent = t; };
-  function enableChatInput(on) {
-    $('#chat-input').disabled = !on;
-    $('#btn-send-chat').disabled = !on;
-    if (on) $('#chat-input').focus();
-  }
-
-  async function startChat() {
-    if (state.chatActive) return;
-    state.chat = [];
-    state.chatScored = null;
-    state.chatActive = true;
-    $('#btn-start-chat').disabled = true;
-    $('#btn-finish-chat').disabled = false;
-    $('#chat-result').classList.add('hidden');
-    renderChatLog();
-    enableChatInput(false);
-    setChatStatus('AI 面试官正在准备…');
-    const rounds = state.data.chat.rounds;
-    try {
-      if (!hasAI()) throw new Error('NO_KEY');
-      const first = await callChat([
-        { role: 'system', content: chatPromptReplace(state.data.chat.systemPrompt) },
-        { role: 'user', content: '请开始第 1 轮提问，只问一个问题。' },
-      ]);
-      pushAssistant(first, 1);
-      renderChatLog();
-      enableChatInput(true);
-      setChatStatus(`第 1 / ${rounds} 轮`);
-    } catch (err) {
-      if (err.message === 'NO_KEY') toast('AI 暂不可用，使用固定问题');
-      else toast(`AI 启动失败：${err.message}；改用固定问题`);
-      pushAssistant(state.data.chat.fallbackQuestions[0], 1);
-      renderChatLog();
-      enableChatInput(true);
-      setChatStatus(`第 1 / ${rounds} 轮（固定问题）`);
-    }
-  }
-
-  async function sendChat() {
-    if (!state.chatActive) return;
-    const text = $('#chat-input').value.trim();
-    if (!text) return;
-    const rounds = state.data.chat.rounds;
-    const answered = answerCount();
-    if (answered >= rounds) return;
-    state.chat.push({ role: 'user', content: text });
-    $('#chat-input').value = '';
-    renderChatLog();
-    enableChatInput(false);
-
-    const isLast = answered + 1 >= rounds;
-    if (isLast) {
-      setChatStatus('已完成全部轮次，请点击「结束面试并评分」');
-      // 收尾（AI 可用时由 AI 说一句结束语，否则用固定收尾）
-      try {
-        if (!hasAI()) throw new Error('NO_KEY');
-        const closing = await callChat([
-          { role: 'system', content: chatPromptReplace(state.data.chat.systemPrompt) },
-          ...state.chat.map((m) => ({ role: m.role, content: m.content })),
-          { role: 'user', content: chatPromptReplace(state.data.chat.closingPrompt) },
-        ], 300);
-        pushAssistant(closing);
-      } catch (_) {
-        pushAssistant('好的，我的问题问完了，感谢你的回答。可以点击「结束面试并评分」。');
-      }
-      renderChatLog();
-      state.chatActive = false;
-      setChatStatus('已完成全部轮次，请点击「结束面试并评分」');
-      return;
-    }
-
-    setChatStatus('面试官思考中…');
-    try {
-      if (!hasAI()) throw new Error('NO_KEY');
-      const next = await callChat([
-        { role: 'system', content: chatPromptReplace(state.data.chat.systemPrompt) },
-        ...state.chat.map((m) => ({ role: m.role, content: m.content })),
-      ]);
-      pushAssistant(next, answered + 2);
-      renderChatLog();
-      enableChatInput(true);
-      setChatStatus(`第 ${answered + 2} / ${rounds} 轮`);
-    } catch (err) {
-      const qs = state.data.chat.fallbackQuestions;
-      const idx = Math.min(answered + 1, qs.length - 1);
-      pushAssistant(qs[idx], answered + 2);
-      renderChatLog();
-      enableChatInput(true);
-      setChatStatus(`第 ${answered + 2} / ${rounds} 轮（固定问题）`);
-    }
-  }
-
-  function transcriptText() {
-    return state.chat.map((m) => `${m.role === 'assistant' ? '面试官' : '同学'}：${m.content}`).join('\n\n');
-  }
-
-  async function finishChat() {
-    if (!state.chat.length) { toast('还没有开始面试', 4200, 'err'); return; }
-    if (!requireContact()) return;
-    if (state.chatScored) { goStep(5); return; }
-    const btn = $('#btn-finish-chat');
-    btn.disabled = true;
-    setChatStatus('AI 正在打分…');
-    try {
-      let out;
-      if (!hasAI()) {
-        out = heuristicChat();
-        toast('AI 暂不可用，使用本地规则打分');
-      } else {
-        const prompt = chatPromptReplace(state.data.chat.scoringPrompt).replace('{transcript}', transcriptText());
-        let lastErr = null;
-        for (let attempt = 1; attempt <= 3; attempt++) {
-          try {
-            out = await callAI([
-              { role: 'system', content: '你是严格但公正的面试官，只输出合法 JSON。' },
-              { role: 'user', content: prompt },
-            ], { json: true, temperature: 0.2, maxTokens: 2800 });
-            break;
-          } catch (err) {
-            lastErr = err;
-            if (attempt < 3) await new Promise((res) => setTimeout(res, 800));
-          }
-        }
-        if (!out) throw lastErr || new Error('AI 评分失败');
-        out.mode = 'ai';
-      }
-      state.chatScored = sanitizeChatScore(out);
-      renderChatScore();
-      setChatStatus('评分完成');
-      setTimeout(() => goStep(5), 700);
-    } catch (err) {
-      console.error(err);
-      setChatStatus('打分失败：' + err.message);
-      btn.disabled = false;
-      toast('打分失败，请重试');
-    }
-  }
-
-  function sanitizeChatScore(out) {
-    const per = Array.isArray(out.perQuestion) ? out.perQuestion : [];
-    const scores = per.map((x, i) => ({
-      round: Number(x.round) || i + 1,
-      score: clamp(Math.round(Number(x.score) || 0), 0, 25),
-      comment: String(x.comment || ''),
-    }));
-    const overall = clamp(Math.round(Number(out.overall) || scores.reduce((a, s) => a + s.score, 0)), 0, 100);
-    return {
-      overall, scores, mode: out.mode,
-      strengths: Array.isArray(out.strengths) ? out.strengths.map(String) : [],
-      risks: Array.isArray(out.risks) ? out.risks.map(String) : [],
-      suggestions: Array.isArray(out.suggestions) ? out.suggestions.map(String) : [],
-      verdict: String(out.verdict || ''),
-    };
-  }
-
-  function heuristicChat() {
-    const answered = answerCount();
-    const avgLen = state.chat.filter((m) => m.role === 'user').reduce((a, m) => a + m.content.length, 0) / Math.max(1, answered);
-    const per = clamp(Math.round((45 + Math.min(30, avgLen / 12)) / 4), 0, 25);
-    return {
-      overall: clamp(per * 4, 0, 100),
-      perQuestion: Array.from({ length: answered }, (_, i) => ({ round: i + 1, score: per, comment: '本地规则评分（仅供参考）' })),
-      strengths: [], risks: [], suggestions: [], verdict: '本地规则评分', mode: 'local',
-    };
-  }
-
-  function renderChatScore() {
-    const s = state.chatScored;
-    const box = $('#chat-result');
-    box.classList.remove('hidden');
-    box.innerHTML = `
-      <h3>AI 面试评分 <span class="verdict">${fmt(s.overall)} / 100 · ${s.mode === 'ai' ? 'AI 评分' : '本地规则评分'}</span></h3>
-      ${s.scores.map((x) => bar(`第 ${x.round} 轮`, x.score * 4)).join('')}
-      <p class="note">逐轮详细点评会随邮件发送给团队；这里只看分数。</p>`;
   }
 
   /* ---------------- 总分 ---------------- */
@@ -565,7 +315,6 @@ ${text}`;
     const parts = [];
     if (mcq.complete) parts.push({ key: 'mcq', name: '情境测评', score: mcq.total, weight: state.data.weights.mcq });
     if (state.introScore) parts.push({ key: 'intro', name: '自我介绍', score: state.introScore.total, weight: state.data.weights.intro });
-    if (state.chatScored) parts.push({ key: 'chat', name: 'AI 面试', score: state.chatScored.overall, weight: state.data.weights.chat });
     const gScore = gradeScore($('#cand-exp').value);
     parts.push({ key: 'grade', name: '年级 / 经验', score: gScore, weight: state.data.weights.grade || 0.2 });
     const wsum = parts.reduce((a, p) => a + p.weight, 0) || 1;
@@ -1054,7 +803,7 @@ ${JSON.stringify(pkg)}
       li.classList.toggle('active', k === n);
       li.classList.toggle('done', k < n);
     });
-    if (n === 5) {
+    if (n === 4) {
       renderReport();
       setTimeout(() => { const r = document.querySelector('#report'); if (r) r.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 50);
     }
@@ -1066,9 +815,6 @@ ${JSON.stringify(pkg)}
     state.intro = '';
     state.introScore = null;
     state.introTries = 0;
-    state.chat = [];
-    state.chatActive = false;
-    state.chatScored = null;
     state.report = null;
     state.encPackage = null;
     try { localStorage.removeItem(DRAFT_KEY); } catch (_) {}
@@ -1076,13 +822,6 @@ ${JSON.stringify(pkg)}
     $('#intro-text').value = '';
     $('#intro-count').textContent = '0 / 3000';
     $('#intro-result').classList.add('hidden');
-    $('#chat-log').innerHTML = '';
-    $('#chat-input').value = '';
-    $('#chat-result').classList.add('hidden');
-    $('#chat-status').textContent = '';
-    $('#btn-start-chat').disabled = false;
-    $('#btn-finish-chat').disabled = true;
-    enableChatInput(false);
     renderMCQ();
     refreshIntroButton();
     goStep(1);
@@ -1145,12 +884,6 @@ ${JSON.stringify(pkg)}
       goStep(4);
     });
 
-    $('#btn-start-chat').addEventListener('click', startChat);
-    $('#btn-send-chat').addEventListener('click', sendChat);
-    $('#chat-input').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(); }
-    });
-    $('#btn-finish-chat').addEventListener('click', finishChat);
 
     $('#btn-mail').addEventListener('click', openMail);
     if ($('#btn-eml')) $('#btn-eml').addEventListener('click', downloadEml);
@@ -1204,32 +937,7 @@ ${JSON.stringify(pkg)}
     $('#intro-count').textContent = `${state.intro.length} / 3000`;
     state.introTries = 1;
     state.introScore = heuristicIntro(state.intro);
-    state.chat = [
-      { role: 'assistant', content: '你说做过草莓盆栽试验，能具体讲一下取样为什么取根表 1–2 mm 的土吗？', round: 1 },
-      { role: 'user', content: '因为菌主要定殖在根表附近，取太远会稀释信号；我们每盆取 5 个点混匀，冰盒带回当天涂布。' },
-      { role: 'assistant', content: '如果第 7 天计数发现处理组只高 0.2 个 log，你会先查什么？', round: 2 },
-      { role: 'user', content: '先看重复间变异和计数方法的误差，再确认取样位置是否一致，之后才判断是不是真的没效果。' },
-      { role: 'assistant', content: '你觉得自己加入这个项目最大的短板是什么？', round: 3 },
-      { role: 'user', content: '硬件和传感器我只懂原理，动手少；打算先跟着把样机装一遍、学会标定。' },
-      { role: 'assistant', content: '如果让你负责一个示范户，你会怎么开始？', round: 4 },
-      { role: 'user', content: '先和农户确认他最在意的问题，再装一个点跑 7 天，用数据和他对齐预期。' },
-      { role: 'assistant', content: '好的，我的问题问完了，感谢你的回答。可以点击「结束面试并评分」。' },
-    ];
-    state.chatScored = {
-      overall: 74, mode: 'ai',
-      scores: [
-        { round: 1, score: 19, comment: '取样细节具体' },
-        { round: 2, score: 20, comment: '先查方法误差，结论纪律好' },
-        { round: 3, score: 17, comment: '短板坦诚但补法略笼统' },
-        { round: 4, score: 18, comment: '先对齐农户关注点' },
-      ],
-      strengths: ['试验细节具体', '结论纪律好'], risks: ['硬件动手经验少'], suggestions: ['补一个 7 天样机日志'], verdict: '适合农艺与试验方向',
-    };
-    renderChatLog();
-    $('#btn-start-chat').disabled = true;
-    $('#btn-finish-chat').disabled = false;
-    renderChatScore();
-    goStep(5);
+    goStep(4);
   }
 
   document.addEventListener('DOMContentLoaded', init);
