@@ -422,3 +422,27 @@ details.adv summary { cursor: pointer; font-size: 12.5px; color: var(--ink-2); }
 /* 必填标记 */
 .req { color: #a11212; font-weight: 600; }
 input:invalid { border-color: #a11212; }
+
+/* ---------- 极简版：摘要行 / 明文预览 ---------- */
+.sum-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--line-strong);
+  font-size: 14px;
+}
+.sum-row span { color: var(--ink-2); }
+.sum-row b { font-weight: 600; }
+#plain-preview {
+  width: 100%;
+  margin-top: 12px;
+  font-family: inherit;
+  font-size: 13px;
+  line-height: 1.7;
+  padding: 12px;
+  border: 1px solid var(--line-strong);
+  background: var(--bg-2);
+  color: var(--ink-2);
+  resize: vertical;
+}

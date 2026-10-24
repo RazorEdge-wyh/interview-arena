@@ -1,33 +1,21 @@
-/* 金种子杯 · 菌护禾 · 团队招募评估（v6）
- * 项目介绍（可跳过）→ 5 题（2 通用 + 1 项目 + 2 方向专业）→ 自我介绍（最多 3 次）→ AI 真实多轮面试 → 评分
- * 页面只展示分数；完整分析随邮件发给团队
+/* 金种子杯 · 菌护禾 · 团队招募（极简版）
+ * 项目介绍 → 5 道选择题 + 基本信息 → 自我介绍 → 2 道简答题 → 确认并发送
+ * 不调用任何 AI、不加密：直接把报名信息明文发给团队
  */
 (() => {
   'use strict';
 
   const DATA_URL = 'data/questions.json';
-  const SETTINGS_KEY = 'ia_settings_v1';
-  const DRAFT_KEY = 'ia_draft_v1';
-  const DEFAULT_BASE = 'https://api.deepseek.com';
-  const DEFAULT_MODEL = 'deepseek-flash';
-  const MAX_INTRO_TRIES = 3;
+  const DRAFT_KEY = 'ia_draft_v2';
 
   const state = {
     data: null,
     direction: 'tech',
-    contact: '',
     answers: {},
     intro: '',
-    introScore: null,
-    introTries: 0,
-    chat: [],
-    chatActive: false,
-    chatScored: null,
-    report: null,
-    encPackage: null,
-    mailtoUrl: '',
-    summaryPkg: null,
-    fullPkg: null,
+    short: {},
+    contact: '',
+    sent: false,
   };
 
   const $ = (s, r = document) => r.querySelector(s);
@@ -36,82 +24,49 @@
   function esc(s) {
     return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   }
-  const fmt = (n, d = 0) => (Number(n) || 0).toFixed(d).replace(/\.0$/, '');
-  const clamp = (n, a, b) => Math.min(b, Math.max(a, Number(n) || 0));
-
-  function requireContact(silent) {
-    const el = $('#cand-contact');
-    const v = el ? el.value.trim() : '';
-    if (v.length >= 5) {
-      if (el) el.style.borderColor = '';
-      const hint = $('#contact-hint');
-      if (hint) hint.textContent = '已填写：' + v;
-      return true;
-    }
-    if (!silent) {
-      if (el) { el.style.borderColor = '#a11212'; el.focus(); }
-      const hint = $('#contact-hint');
-      if (hint) hint.textContent = '必填：请填写手机号或微信号（至少 5 个字符）';
-      toast('请先填写联系方式（必填）', 4200, 'err');
-    }
-    return false;
-  }
 
   function toast(msg, ms = 4200, type = '') {
     const el = $('#toast');
     if (!el) return;
     el.textContent = msg;
-    el.className = 'toast' + (type ? ' ' + type : '');
+    el.className = 'toast show ' + (type || '');
     clearTimeout(toast._t);
-    toast._t = setTimeout(() => el.classList.add('hidden'), ms);
+    toast._t = setTimeout(() => { el.className = 'toast hidden'; }, ms);
   }
 
-  function showNotice(el, text, type = '') {
+  function showNotice(el, text) {
     if (!el) return;
     el.textContent = text;
-    el.className = 'notice' + (type ? ' ' + type : '');
     el.classList.remove('hidden');
   }
   function hideNotice(el) { if (el) el.classList.add('hidden'); }
 
-  /* ---------------- 配置 ---------------- */
-  function getSettings() {
-    let s = {};
-    try { s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}'); } catch (_) {}
-    const cfg = window.__IA_CONFIG__ || {};
-    return {
-      baseUrl: (s.baseUrl || cfg.baseUrl || DEFAULT_BASE).replace(/\/+$/, ''),
-      model: s.model || cfg.model || DEFAULT_MODEL,
-      apiKey: s.apiKey || cfg.apiKey || '',
-      apiBase: (s.apiBase || cfg.apiBase || '').replace(/\/+$/, ''),
-      apiEndpoint: s.apiEndpoint || cfg.apiEndpoint || '',
-      apiSecret: s.apiSecret || cfg.apiSecret || '',
-    };
-  }
-
-  /* ---------------- 后端发信 ---------------- */
-  function backendReady() { const s = getSettings(); return !!(s.apiBase || s.apiEndpoint); }
-
-  async function backendSend(subject, text) {
-    const s = getSettings();
-    const url = s.apiEndpoint || (s.apiBase + '/api/send');
-    const headers = { 'Content-Type': 'application/json' };
-    if (s.apiSecret) headers['x-api-secret'] = s.apiSecret;
-    const ctrl = new AbortController();
-    const timer = setTimeout(() => ctrl.abort(), 25000);
+  /* ---------------- 草稿 ---------------- */
+  function saveDraft() {
     try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ subject, text }),
-        signal: ctrl.signal,
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP ' + res.status));
-      return data;
-    } finally {
-      clearTimeout(timer);
-    }
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({
+        direction: state.direction,
+        answers: state.answers,
+        intro: $('#intro-text') ? $('#intro-text').value : state.intro,
+        short: state.short,
+        contact: state.contact,
+        name: $('#cand-name') ? $('#cand-name').value : '',
+        exp: $('#cand-exp') ? $('#cand-exp').value : '',
+      }));
+    } catch (_) {}
+  }
+  function restoreDraft() {
+    try {
+      const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null');
+      if (!d) return;
+      if (d.direction) state.direction = d.direction;
+      if (d.answers) state.answers = d.answers;
+      if (typeof d.intro === 'string') state.intro = d.intro;
+      if (d.short) state.short = d.short;
+      if (d.contact) state.contact = d.contact;
+      if (d.name && $('#cand-name')) $('#cand-name').value = d.name;
+      if (d.exp && $('#cand-exp')) $('#cand-exp').value = d.exp;
+    } catch (_) {}
   }
 
   /* ---------------- 数据 ---------------- */
@@ -121,14 +76,19 @@
     return res.json();
   }
 
-  const dimKeys = () => Object.keys(state.data.dimensions);
   const dir = () => (state.data.directions || []).find((d) => d.id === state.direction) || state.data.directions[0];
-  function questionsFor(directionId) {
-    const d = (state.data.directions || []).find((x) => x.id === directionId) || state.data.directions[0];
+  function questionsFor(id) {
+    const d = (state.data.directions || []).find((x) => x.id === id) || state.data.directions[0];
     return [...state.data.generalQuestions, state.data.projectQuestion, ...d.roleQuestions];
   }
+  const shortQuestions = () => (state.data.shortQuestions && state.data.shortQuestions.length)
+    ? state.data.shortQuestions
+    : [
+        { id: 's1', title: '你为什么想加入菌护禾？', hint: '1–3 句话即可' },
+        { id: 's2', title: '你能投入多少时间？希望负责哪块？', hint: '例如：每周 6 小时，偏硬件/试验/运营' },
+      ];
 
-  /* ---------------- 渲染：项目介绍 ---------------- */
+  /* ---------------- 渲染 ---------------- */
   function renderProjectIntro() {
     const p = state.data.projectIntro || {};
     if ($('#project-title')) $('#project-title').textContent = p.title || '项目介绍';
@@ -139,16 +99,6 @@
         <h3>${esc(s.h)}</h3>
         ${(s.p || []).map((x) => `<p>${esc(x)}</p>`).join('')}
       </div>`).join('');
-  }
-
-  /* ---------------- 渲染：团队 / 方向 / 题目 ---------------- */
-  function renderTeam() {
-    const t = state.data.team || {};
-    if ($('#team-name')) $('#team-name').textContent = `${t.name || '菌护禾'} · 团队招募`;
-    if ($('#team-track')) $('#team-track').textContent = t.track || '';
-    if ($('#team-positioning')) $('#team-positioning').textContent = t.positioning || '';
-    if ($('#team-stage')) $('#team-stage').textContent = t.stage || '';
-    if ($('#team-hiring-note')) $('#team-hiring-note').textContent = t.hiringNote || '';
   }
 
   function renderDirections() {
@@ -165,17 +115,12 @@
     sel.addEventListener('change', () => selectDirection(sel.value));
     markDirection();
   }
-
   function markDirection() {
     $$('#direction-cards .role-card').forEach((c) => c.classList.toggle('selected', c.dataset.dir === state.direction));
   }
-
   function selectDirection(id) {
     state.direction = id;
     state.answers = {};
-    state.chat = [];
-    state.chatScored = null;
-    state.chatActive = false;
     if ($('#cand-direction')) $('#cand-direction').value = id;
     markDirection();
     renderMCQ();
@@ -196,7 +141,6 @@
             </label>`).join('')}
         </div>
       </div>`).join('');
-
     $$('#mcq-list .q-card').forEach((card) => {
       const qid = card.dataset.qid;
       $$('.opt', card).forEach((opt) => {
@@ -209,588 +153,155 @@
     });
   }
 
-  /* ---------------- 计分 ---------------- */
-  function mcqScore() {
-    const qs = questionsFor(state.direction);
-    const dims = {};
-    const maxTotal = {};
-    dimKeys().forEach((k) => { dims[k] = 0; maxTotal[k] = 0; });
-    qs.forEach((q) => {
-      dimKeys().forEach((k) => { maxTotal[k] += Math.max(...q.options.map((o) => o.scores[k] || 0)); });
-      const oi = state.answers[q.id];
-      if (oi === undefined) return;
-      dimKeys().forEach((k) => { dims[k] += q.options[oi].scores[k] || 0; });
+  function renderShort() {
+    $('#short-list').innerHTML = shortQuestions().map((q, i) => `
+      <div class="q-card" data-sid="${q.id}">
+        <div class="q-title">${i + 1}. ${esc(q.title)}</div>
+        <p class="hint">${esc(q.hint || '')}</p>
+        <textarea class="short-input" rows="3" maxlength="600" placeholder="写下你的回答……">${esc(state.short[q.id] || '')}</textarea>
+      </div>`).join('');
+    $$('#short-list .short-input').forEach((t) => {
+      t.addEventListener('input', () => {
+        const qid = t.closest('.q-card').dataset.sid;
+        state.short[qid] = t.value;
+        saveDraft();
+      });
     });
-    const percent = {};
-    dimKeys().forEach((k) => { percent[k] = maxTotal[k] ? (dims[k] / maxTotal[k]) * 100 : 0; });
-    const complete = qs.every((q) => state.answers[q.id] !== undefined);
-    const total = dimKeys().reduce((a, k) => a + percent[k], 0) / dimKeys().length;
-    return { dims, percent, total, complete };
   }
 
-  function computeFit(percent) {
-    return (state.data.directions || []).map((d) => {
-      const w = d.fitWeights || {};
-      const tw = Object.values(w).reduce((a, b) => a + b, 0) || 1;
-      const s = Object.keys(w).reduce((a, k) => a + (percent[k] || 0) * w[k], 0) / tw;
-      return { id: d.id, name: d.name, score: s };
-    }).sort((a, b) => b.score - a.score);
-  }
-
-  /* ---------------- 评分（本地规则，不调用 AI） ---------------- */
-
-  /* ---------------- 自我介绍 ---------------- */
-  function heuristicIntro(text) {
-    const len = text.trim().length;
-    const digits = (text.match(/\d+/g) || []).length;
-    const dimensions = {
-      structure: { score: Math.round(clamp(40 + Math.min(30, Math.round(len / 20)), 0, 85) / 4), reason: '本地规则评分（仅供参考）' },
-      specificity: { score: Math.round(clamp(30 + Math.min(40, digits * 8), 0, 85) / 4), reason: '本地规则评分（仅供参考）' },
-      selfAwareness: { score: Math.round((/反思|学到|不足|改进|下次/.test(text) ? 70 : 45) / 4), reason: '本地规则评分（仅供参考）' },
-      roleFit: { score: Math.round((/(试验|样机|传感器|数据|合作社|农户|田间|代码|发酵|销售|渠道|运营|申报)/.test(text) ? 68 : 48) / 4), reason: '本地规则评分（仅供参考）' },
-    };
-    const total = Math.round(Object.values(dimensions).reduce((a, d) => a + d.score, 0) * 4 / 4);
-    return { dimensions, total, mode: 'local', highlights: [], risks: [], suggestions: [] };
-  }
-
-  async function scoreIntro(text) {
-    if (!text || text.trim().length < 30) throw new Error('至少写 30 字');
-    return heuristicIntro(text);
-  }
-
-  function renderIntroResult(r) {
-    const box = $('#intro-result');
-    box.classList.remove('hidden');
-    box.innerHTML = `
-      <h3>自我介绍评分 <span class="verdict">${fmt(r.total)} / 100 · ${r.mode === 'ai' ? 'AI 评分' : '本地规则评分'}</span></h3>
-      ${state.data.introRubric.map((x) => bar(x.label, ((r.dimensions && r.dimensions[x.key] && r.dimensions[x.key].score) || 0) * 4)).join('')}
-      <p class="note">这只是分数；完整分析会随邮件发送给团队。</p>`;
-    refreshIntroButton();
-  }
-
-  function refreshIntroButton() {
-    const left = MAX_INTRO_TRIES - state.introTries;
-    const btn = $('#btn-score-intro');
-    if (!btn) return;
-    if (state.introTries >= MAX_INTRO_TRIES) {
-      btn.disabled = true;
-      btn.textContent = '已提交 3 次（不可再提交）';
-      $('#intro-tries').textContent = `共 3 次提交机会，已使用 3 次。可以直接进入下一步。`;
-      return;
-    }
-    btn.disabled = false;
-    btn.textContent = state.introTries === 0 ? '提交并评分' : `再提交一次（可选，第 ${state.introTries + 1} / ${MAX_INTRO_TRIES} 次）`;
-    $('#intro-tries').textContent = `共 3 次提交机会，提交 1 次即可进入下一步；还剩 ${left} 次。`;
-  }
-
-  /* ---------------- 总分 ---------------- */
-  function gradeScore(exp) {
-    const map = {
-      '大一 / 1 年': 60,
-      '大二 / 1 年': 70,
-      '大三 / 2 年': 80,
-      '大四 / 3 年': 90,
-      '研究生 / 3 年以上': 100,
-    };
-    const v = map[String(exp || '').trim()];
-    return v === undefined ? 60 : v;
-  }
-
-  function verdictOf(total) {
-    if (total >= 80) return '强推荐进入下一轮';
-    if (total >= 65) return '推荐进入下一轮';
-    if (total >= 50) return '待定，建议再聊聊';
-    return '暂不建议推进'; // 仅团队内部使用，不展示给同学
-  }
-
-  function publicVerdict(total) {
-    if (total >= 80) return '强推荐进入下一轮';
-    if (total >= 65) return '推荐进入下一轮';
-    if (total >= 50) return '待定，建议再聊聊';
-    return '已完成评估，请等待团队联系';
-  }
-
-  function buildReport() {
-    const mcq = mcqScore();
-    const parts = [];
-    if (mcq.complete) parts.push({ key: 'mcq', name: '情境测评', score: mcq.total, weight: state.data.weights.mcq });
-    if (state.introScore) parts.push({ key: 'intro', name: '自我介绍', score: state.introScore.total, weight: state.data.weights.intro });
-    const gScore = gradeScore($('#cand-exp').value);
-    parts.push({ key: 'grade', name: '年级 / 经验', score: gScore, weight: state.data.weights.grade || 0.2 });
-    const wsum = parts.reduce((a, p) => a + p.weight, 0) || 1;
-    const total = parts.reduce((a, p) => a + p.score * (p.weight / wsum), 0);
-    const bonus = gScore * ((state.data.weights.grade || 0.2) / wsum);
-    const baseTotal = total - bonus;
-    const dims = dimKeys().map((k) => ({
-      key: k, label: state.data.dimensions[k].label, type: state.data.dimensions[k].type, value: mcq.percent[k] ?? 0,
-    })).sort((a, b) => a.value - b.value);
-    return {
-      name: ($('#cand-name').value || '同学').trim(),
-      contact: ($('#cand-contact') ? $('#cand-contact').value : '').trim(),
-      direction: dir().name,
-      directionId: state.direction,
-      exp: $('#cand-exp').value,
-      total: clamp(total, 0, 100),
-      baseTotal: clamp(baseTotal, 0, 100),
-      gradeBonus: bonus,
-      verdict: verdictOf(total),
-      verdictText: publicVerdict(total),
-      parts, dims,
-      fit: computeFit(mcq.percent),
-      intro: state.introScore,
-      chat: state.chatScored,
-      transcript: state.chat,
-      introText: state.intro,
-      mcqAnswers: questionsFor(state.direction).map((q) => ({
-        q: q.title,
-        answer: state.answers[q.id] !== undefined ? q.options[state.answers[q.id]].text : '（未作答）',
-      })),
-      createdAt: new Date().toISOString(),
-      weightsUsed: wsum,
-    };
-  }
-
-  function bar(label, value) {
-    const v = clamp(Number(value) || 0, 0, 100);
-    return `<div class="score-row">
-      <span class="score-label">${esc(label)}</span>
-      <span class="score-bar"><i style="width:${v}%"></i></span>
-      <span class="score-val">${fmt(v, 1)}</span>
-    </div>`;
-  }
-
-  function renderReport() {
-    const r = buildReport();
-    state.report = r;
-    const partsHtml = r.parts.map((p) => `<div class="stat"><b>${fmt(p.score, 1)}</b><span>${esc(p.name)} · 权重 ${Math.round((p.weight / r.weightsUsed) * 100)}%</span></div>`).join('');
-    const dimsHtml = r.dims.map((d) => bar(`${d.label}（${d.type === 'ability' ? '能力' : '性格'}）`, d.value)).join('');
-    const fit = r.fit.slice(0, 3).map((f, i) => bar(`${i === 0 ? '最匹配' : '第 ' + (i + 1)} · ${f.name}`, f.score)).join('');
-    const chatScores = r.chat ? r.chat.scores.map((x, i) => bar(`第 ${x.round || i + 1} 轮`, x.score * 4)).join('') : '';
-    $('#report').innerHTML = `
-      <div class="big-score">
-        <b>${fmt(r.total, 1)}</b><span>/ 100 综合评分</span>
-        <span class="verdict">${esc(r.verdictText || r.verdict)}</span>
-      </div>
-      <p class="hint">${esc(r.name)} · ${esc(r.direction)} · ${esc(r.exp)} · ${new Date(r.createdAt).toLocaleString('zh-CN')}</p>
-      <div class="split">${partsHtml}</div>
-      <h3>四维画像</h3>
-      <div class="dim-grid">${dimsHtml}</div>
-      <h3>方向契合</h3>
-      <div class="dim-grid">${fit}</div>
-      ${chatScores ? `<h3>AI 面试逐轮得分</h3><div class="dim-grid">${chatScores}</div>` : ''}
-      <p class="note">这里只展示分数；完整分析会随邮件发送给团队。</p>`;
-    prepareReportAssets();
-  }
-
-  /* ---------------- 邮件（密码 00000，页面不展示技术细节） ---------------- */
-  const PACK_PASSWORD = '00000';
-  const PBKDF2_ITER = 120000;
-
-  function b64(bytes) {
-    let s = '';
-    const arr = new Uint8Array(bytes);
-    for (let i = 0; i < arr.length; i += 0x8000) s += String.fromCharCode.apply(null, arr.subarray(i, i + 0x8000));
-    return btoa(s);
-  }
-  function b64url(bytes) {
-    return b64(bytes).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
-  }
-
-  async function gzipBytes(bytes) {
-    if (typeof CompressionStream === 'undefined') return bytes;
-    const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('gzip'));
-    return new Uint8Array(await new Response(stream).arrayBuffer());
-  }
-  async function deriveKey(password, salt) {
-    const raw = new TextEncoder().encode(password);
-    const baseKey = await crypto.subtle.importKey('raw', raw, 'PBKDF2', false, ['deriveKey']);
-    return crypto.subtle.deriveKey(
-      { name: 'PBKDF2', salt, iterations: PBKDF2_ITER, hash: 'SHA-256' },
-      baseKey, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt'],
-    );
-  }
-  async function encryptPacket(payload, password = PACK_PASSWORD) {
-    const raw = new TextEncoder().encode(JSON.stringify(payload));
-    const compressed = await gzipBytes(raw);
-    const salt = crypto.getRandomValues(new Uint8Array(16));
-    const iv = crypto.getRandomValues(new Uint8Array(12));
-    const key = await deriveKey(password, salt);
-    const ct = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, compressed);
-    return { v: 2, alg: 'A256GCM+PBKDF2+gzip', mode: payload.mode || 'summary', to: payload.to, createdAt: payload.createdAt, salt: b64url(salt), iv: b64url(iv), data: b64url(ct) };
-  }
-
-  function summaryPayload(report) {
-    return {
-      mode: 'summary',
-      to: state.data.mailTo,
-      createdAt: new Date().toISOString(),
-      candidate: { name: report.name, direction: report.direction, exp: report.exp, contact: report.contact },
-      total: Math.round(report.total * 10) / 10,
-      verdict: report.verdict,
-      parts: report.parts.map((p) => ({ name: p.name, score: Math.round(p.score * 10) / 10 })),
-      dims: report.dims.map((d) => ({ label: d.label, value: Math.round(d.value * 10) / 10 })),
-      chatScores: report.chat ? report.chat.scores.map((x) => ({ round: x.round, score: x.score })) : [],
-      analysis: {
-        intro: report.intro ? { highlights: report.intro.highlights, risks: report.intro.risks, suggestions: report.intro.suggestions } : null,
-        chat: report.chat ? { strengths: report.chat.strengths, risks: report.chat.risks, suggestions: report.chat.suggestions, verdict: report.chat.verdict } : null,
-      },
-      introText: (report.introText || '').slice(0, 200),
-    };
-  }
-
-  function fullPayload(report) {
-    return {
-      mode: 'full',
-      to: state.data.mailTo,
-      createdAt: new Date().toISOString(),
-      candidate: { name: report.name, direction: report.direction, directionId: report.directionId, exp: report.exp, contact: report.contact },
-      scores: {
-        total: Math.round(report.total * 10) / 10, verdict: report.verdict,
-        baseTotal: Math.round((report.baseTotal || report.total) * 10) / 10,
-        gradeBonus: report.gradeBonus || 0,
-        grade: report.exp,
-        parts: report.parts.map((p) => ({ name: p.name, score: Math.round(p.score * 10) / 10, weight: p.weight })),
-        dims: report.dims.map((d) => ({ label: d.label, type: d.type, value: Math.round(d.value * 10) / 10 })),
-        fit: report.fit.map((f) => ({ name: f.name, score: Math.round(f.score * 10) / 10 })),
-        chat: report.chat ? { overall: report.chat.overall, perQuestion: report.chat.scores, mode: report.chat.mode } : null,
-      },
-      analysis: {
-        intro: report.intro ? { total: report.intro.total, mode: report.intro.mode, dimensions: report.intro.dimensions, highlights: report.intro.highlights, risks: report.intro.risks, suggestions: report.intro.suggestions } : null,
-        chat: report.chat ? { strengths: report.chat.strengths, risks: report.chat.risks, suggestions: report.chat.suggestions, verdict: report.chat.verdict } : null,
-      },
-      introText: report.introText,
-      mcqAnswers: report.mcqAnswers,
-      transcript: report.transcript,
-    };
-  }
-
-  const recipients = () => (state.data.mailTo || []).join(',');
-  function mailSubject() {
-    const name = ($('#cand-name').value || '同学').trim();
-    const total = state.report ? fmt(state.report.total, 1) : '';
-    return `【金种子杯·菌护禾】${name} 的面试结果${total ? `（${total} 分）` : ''}`;
-  }
-  function mailBody(pkg) {
-    const r = state.report || {};
-    return `金种子杯 · 菌护禾 团队招募
-
-同学：${r.name || ''}
-联系方式：${r.contact || '（未填）'}
-方向：${r.direction || ''}
-综合分：${fmt(r.total, 1)} / 100
-
-团队查看完整分析：打开结果查看页，把本邮件全文粘贴进去即可，无需密钥。
-===BEGIN ANALYSIS===
-${JSON.stringify(pkg)}
-===END ANALYSIS===
-`;
-  }
-
-  // 紧凑数组（字段位置固定），完整信息 + 更短的密文，保证 mailto 能带上全部内容
-  function compactPayload(r) {
-    return [
-      r.name, r.contact, r.direction, r.exp, r.createdAt,
-      Math.round(r.total * 10) / 10,
-      Math.round((r.baseTotal || r.total) * 10) / 10,
-      r.gradeBonus || 0, r.verdict,
-      r.parts.map((p) => [p.name, Math.round(p.score * 10) / 10, p.weight]),
-      r.dims.map((d) => [d.label, d.type, Math.round(d.value * 10) / 10]),
-      (r.fit || []).map((f) => [f.name, Math.round(f.score * 10) / 10]),
-      r.chat ? r.chat.overall : null,
-      r.chat ? r.chat.mode : null,
-      r.chat ? r.chat.scores.map((x) => [x.round, x.score, x.comment]) : [],
-      r.chat ? (r.chat.strengths || []) : [],
-      r.chat ? (r.chat.risks || []) : [],
-      r.chat ? (r.chat.suggestions || []) : [],
-      r.chat ? (r.chat.verdict || '') : '',
-      r.intro ? r.intro.total : null,
-      r.intro ? r.intro.mode : null,
-      r.intro && r.intro.dimensions ? Object.entries(r.intro.dimensions).map(([k, v]) => [k, v.score, v.reason]) : [],
-      r.intro ? (r.intro.highlights || []) : [],
-      r.intro ? (r.intro.risks || []) : [],
-      r.intro ? (r.intro.suggestions || []) : [],
-      r.introText || '',
-      r.mcqAnswers.map((x) => [x.q, x.answer]),
-      (r.transcript || []).map((m) => [m.role, m.content]),
-    ];
-  }
-
-  function mailBodyShort(pkg) {
-    return 'Jinzhongzi Cup / Junhuhe team recruitment result.\n'
-      + 'Team: paste this whole email into the result page to view (no key needed).\n'
-      + '===BEGIN ANALYSIS===\n'
-      + JSON.stringify(pkg)
-      + '\n===END ANALYSIS===\n';
-  }
-
-  async function prepareReportAssets() {
-    if (!state.report) return;
-    try {
-      state.fullPkg = await encryptPacket(fullPayload(state.report));
-      const compactPkg = await encryptPacket(compactPayload(state.report));
-      state.summaryPkg = compactPkg;
-      state.fullCode = `===BEGIN ANALYSIS===\n${JSON.stringify(compactPkg)}\n===END ANALYSIS===`;
-      const r = state.report;
-      const shortBody = '金种子杯 · 菌护禾 团队招募\n'
-        + `同学：${r.name}\n方向：${r.direction}\n综合分：${fmt(r.total, 1)} / 100\n\n`
-        + '完整加密结果已自动复制到剪贴板。\n'
-        + '请在下面按 Ctrl+V 粘贴，然后点发送即可。\n\n'
-        + '[在此粘贴完整加密结果]\n';
-      state.mailtoUrl = `mailto:${recipients()}?subject=${encodeURIComponent(mailSubject())}&body=${encodeURIComponent(shortBody)}`;
-      const st = $('#mail-status');
-      if (st && !st.textContent) st.textContent = '准备完成：点「① 一键发送给团队」可直接发送；网络不通时用「② 手动发送」。';
-    } catch (err) {
-      console.warn('prepare mail failed', err);
-    }
-  }
-
-  async function openMail() {
-    if (!state.report) { toast('请先完成评分', 4200, 'err'); return; }
-    if (!state.mailtoUrl || !state.fullCode) {
-      prepareReportAssets();
-      toast('正在准备邮件，请稍等 1 秒再点', 4200, 'err');
-      return;
-    }
-    // 有后端：直接由后端发信，一步到位（最多等 20 秒，超时自动改手动）
-    if (backendReady()) {
-      const btn = $('#btn-mail');
-      btn.disabled = true; btn.textContent = '正在发送…';
-      $('#mail-status').textContent = '正在通过团队服务器发送，最多等待 20 秒…';
-      let sent = false;
-      try {
-        const text = '金种子杯 · 菌护禾 团队招募\n\n' + state.fullCode;
-        await Promise.race([
-          backendSend(mailSubject(), text),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 20000)),
-        ]);
-        sent = true;
-        $('#mail-status').textContent = '已发送到团队邮箱（2160634966 / 2715240991 / 355594812）。';
-        toast('已发送到团队邮箱', 5000, 'ok');
-        btn.textContent = '已发送';
-        btn.disabled = true;
-      } catch (err) {
-        console.warn('backend send failed', err);
-        const msg = (err && (err.message === 'TIMEOUT' || err.name === 'AbortError' || err.name === 'TimeoutError'))
-          ? '发送超时，已改为手动方式，请用下面的按钮'
-          : ('后端发送失败：' + (err.message || err) + '，已改为手动方式');
-        toast(msg, 6000, 'err');
-        $('#mail-status').textContent = '后端没有发送成功，已切换为手动方式，请用下面的按钮。';
-        const fb = $('#manual-box');
-        if (fb) fb.classList.remove('hidden');
-        const fbStatus = $('#fallback-status');
-        if (fbStatus) fbStatus.textContent = '请点「复制加密结果」，粘到自己的邮箱发给上面三个邮箱；不行再加微信 w13908105242（备注来意）。';
-      } finally {
-        if (!sent) { btn.disabled = false; btn.textContent = '① 一键发送给团队'; }
-      }
-      if (sent) return;
-    }
-    // 无后端：复制完整密文 + 打开短邮件（用 location.href，兼容性最好）
-    let copied = false;
-    try { copied = copyTextFallback(state.fullCode); } catch (_) {}
-    if (!copied) {
-      try { navigator.clipboard.writeText(state.fullCode); copied = true; } catch (_) {}
-    }
-    const debugMail = new URLSearchParams(location.search).get('debug') === '1';
-    $('#mail-status').textContent = (copied ? '完整加密结果已复制到剪贴板。' : '')
-      + '正在打开邮件应用（若没弹出，说明本机没有设置默认邮件程序，请用下方「复制加密结果」或「下载加密结果文件」）。'
-      + (debugMail ? `（mailto 长度 ${state.mailtoUrl.length}）` : '');
-    const mb = $('#manual-box');
-    if (mb && mb.classList.contains('hidden')) mb.classList.remove('hidden');
-    try {
-      window.location.href = state.mailtoUrl;
-    } catch (err) {
-      toast('打开邮件失败：' + err.message + '；请用「复制加密结果」或「下载加密结果文件」', 5000, 'err');
-    }
-  }
-
-  function downloadEml() {
-    if (!state.report) { toast('请先完成评分', 4200, 'err'); return; }
-    if (!state.summaryPkg) { prepareReportAssets(); toast('正在准备，请稍等 1 秒再点', 4200, 'err'); return; }
-    try {
-      const boundary = '----Junhuhe' + Date.now().toString(36);
-      const code = `===BEGIN ANALYSIS===\n${JSON.stringify(state.summaryPkg)}\n===END ANALYSIS===\n`;
-      const intro = `金种子杯 · 菌护禾 团队招募\n同学：${state.report.name}\n方向：${state.report.direction}\n综合分：${fmt(state.report.total, 1)} / 100\n\n完整分析见附件「面试结果.txt」；团队把它粘贴到结果查看页即可看到（无需密钥）。\n`;
-      const b64raw = (t) => b64(new TextEncoder().encode(t));
-      const toB64 = (t) => b64raw(t).replace(/(.{76})/g, '$1\r\n');
-      const subjectEnc = '=?UTF-8?B?' + b64raw(mailSubject()) + '?=';
-      const attachmentName = `菌护禾-面试结果-${($('#cand-name').value || '同学').trim()}.txt`;
-      const encodedName = encodeURIComponent(attachmentName);
-      const eml = [
-        `To: ${recipients()}`,
-        `Subject: ${subjectEnc}`,
-        'MIME-Version: 1.0',
-        `Content-Type: multipart/mixed; boundary="${boundary}"`,
-        '',
-        `--${boundary}`,
-        'Content-Type: text/plain; charset=UTF-8',
-        'Content-Transfer-Encoding: base64',
-        '',
-        toB64(intro),
-        `--${boundary}`,
-        `Content-Type: text/plain; charset=UTF-8; name*=UTF-8''${encodedName}`,
-        `Content-Disposition: attachment; filename*=UTF-8''${encodedName}`,
-        'Content-Transfer-Encoding: base64',
-        '',
-        toB64(code),
-        `--${boundary}--`,
-        '',
-      ].join('\r\n');
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(new Blob([eml], { type: 'message/rfc822' }));
-      a.download = `菌护禾-面试结果邮件-${($('#cand-name').value || '同学').trim()}-${Date.now()}.eml`;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(a.href), 3000);
-      $('#mail-status').textContent = '已下载邮件文件（含加密结果附件）：双击打开，收件人和附件都已填好，点发送即可。';
-      toast('已下载邮件文件：双击打开 → 点发送（带附件）', 5000, 'ok');
-    } catch (err) {
-      toast('生成失败：' + err.message, 5000, 'err');
-    }
-  }
-
-  async function copyMailContent() {
-    if (!state.report) { toast('请先完成评分', 4200, 'err'); return; }
-    try {
-      const pkg = await encryptPacket(summaryPayload(state.report));
-      await navigator.clipboard.writeText(`收件人：${recipients()}\n主题：${mailSubject()}\n\n${mailBody(pkg)}`);
-      toast('已复制：收件人 + 主题 + 邮件内容', 4200, 'ok');
-    } catch (_) {
-      toast('复制失败，请用「① 一键发送给团队」或「② 手动发送」', 4200, 'err');
-    }
-  }
-
-  function plainResultText(report) {
-    const r = report;
+  /* ---------------- 内容拼装 ---------------- */
+  function buildText() {
+    const name = (($('#cand-name') && $('#cand-name').value) || '同学').trim();
+    const contact = (($('#cand-contact') && $('#cand-contact').value) || '').trim();
+    const exp = $('#cand-exp') ? $('#cand-exp').value : '';
     const lines = [];
-    lines.push('金种子杯 · 菌护禾 团队招募 · 面试结果');
+    lines.push('【金种子杯 · 菌护禾 团队招募 · 报名信息】');
     lines.push('');
-    lines.push(`同学：${r.name}`);
-    lines.push(`方向：${r.direction}`);
-    lines.push(`${r.exp}`);
-    lines.push(`综合分：${fmt(r.total, 1)} / 100（${r.verdictText || r.verdict}）`);
+    lines.push('姓名：' + name);
+    lines.push('联系方式：' + contact);
+    lines.push('想加入方向：' + dir().name);
+    lines.push('年级 / 经验：' + exp);
     lines.push('');
-    lines.push('模块分：');
-    r.parts.forEach((p) => { lines.push(`- ${p.name}：${fmt(p.score, 1)}`); });
+    lines.push('一、选择题（共 ' + questionsFor(state.direction).length + ' 题）');
+    questionsFor(state.direction).forEach((q, i) => {
+      const idx = state.answers[q.id];
+      const ans = idx === undefined ? '（未作答）' : q.options[idx].text;
+      lines.push((i + 1) + '. ' + q.title);
+      lines.push('   作答：' + ans);
+    });
     lines.push('');
-    lines.push('四维画像：');
-    r.dims.forEach((d) => { lines.push(`- ${d.label}：${fmt(d.value, 1)}`); });
-    if (r.fit && r.fit.length) {
-      lines.push('');
-      lines.push('方向契合：');
-      r.fit.slice(0, 3).forEach((f, i) => { lines.push(`- ${i === 0 ? '最匹配' : '第 ' + (i + 1)}：${f.name}（${fmt(f.score, 1)}）`); });
-    }
-    if (r.chat) {
-      lines.push('');
-      lines.push('AI 面试逐轮：');
-      r.chat.scores.forEach((x, i) => { lines.push(`- 第 ${x.round || i + 1} 轮：${fmt((Number(x.score) || 0) * 4, 0)}`); });
-    }
-    const ai = (r.intro && (r.intro.highlights || r.intro.risks || r.intro.suggestions)) ? r.intro : null;
-    if (ai) {
-      lines.push('');
-      lines.push('自我介绍分析：');
-      (ai.highlights || []).forEach((x) => lines.push(`+ ${x}`));
-      (ai.risks || []).forEach((x) => lines.push(`- ${x}`));
-      (ai.suggestions || []).forEach((x) => lines.push(`> ${x}`));
-    }
-    if (r.chat) {
-      lines.push('');
-      lines.push('AI 面试分析：');
-      (r.chat.strengths || []).forEach((x) => lines.push(`+ ${x}`));
-      (r.chat.risks || []).forEach((x) => lines.push(`- ${x}`));
-      (r.chat.suggestions || []).forEach((x) => lines.push(`> ${x}`));
-      if (r.chat.verdict) lines.push(`结论：${r.chat.verdict}`);
-    }
+    lines.push('二、自我介绍');
+    const intro = ($('#intro-text') ? $('#intro-text').value : state.intro) || '';
+    lines.push(intro.trim() || '（未填写）');
     lines.push('');
-    lines.push(`生成时间：${new Date(r.createdAt).toLocaleString('zh-CN')}`);
-    lines.push('（把这段文字发给菌护禾团队负责人即可）');
+    lines.push('三、简答题');
+    shortQuestions().forEach((q, i) => {
+      lines.push((i + 1) + '. ' + q.title);
+      lines.push('   回答：' + (((state.short[q.id] || '')).trim() || '（未填写）'));
+    });
     return lines.join('\n');
   }
 
-  function copyTextFallback(text) {
-    try {
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      ta.style.position = 'fixed';
-      ta.style.top = '-9999px';
-      document.body.appendChild(ta);
-      ta.select();
-      const ok = document.execCommand('copy');
-      ta.remove();
-      return ok;
-    } catch (_) {
-      return false;
-    }
+  function mailSubject() {
+    const name = (($('#cand-name') && $('#cand-name').value) || '同学').trim();
+    return '【金种子杯·菌护禾】报名：' + name + ' · ' + dir().name;
   }
 
-  async function copyPlainResult() {
-    if (!state.report) { toast('请先完成评分', 4200, 'err'); return; }
-    const btn = $('#btn-copy-result');
+  /* ---------------- 发送 ---------------- */
+  function getConfig() { return window.__IA_CONFIG__ || {}; }
+  function endpoint() {
+    const c = getConfig();
+    if (c.apiEndpoint) return c.apiEndpoint;
+    if (c.apiBase) return c.apiBase.replace(/\/+$/, '') + '/api/send';
+    return '';
+  }
+
+  async function sendViaBackend(subject, text) {
+    const url = endpoint();
+    if (!url) throw new Error('未配置发送服务');
+    const headers = { 'Content-Type': 'application/json' };
+    const c = getConfig();
+    if (c.apiSecret) headers['x-api-secret'] = c.apiSecret;
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 20000);
     try {
-      const pkg = state.fullPkg || await encryptPacket(fullPayload(state.report));
-      const code = `===BEGIN ANALYSIS===\n${JSON.stringify(pkg)}\n===END ANALYSIS===`;
-      let ok = false;
-      try {
-        await navigator.clipboard.writeText(code);
-        ok = true;
-      } catch (_) {
-        ok = copyTextFallback(code);
-      }
-      if (ok) {
-        $('#fallback-status').textContent = '已复制到剪贴板。请粘到自己的邮箱，发给 2160634966@qq.com、2715240991@qq.com、355594812@qq.com；实在不行再加微信 w13908105242（备注来意）。';
-        toast('已复制加密结果，请手动发给上面三个邮箱', 5000, 'ok');
-      } else {
-        $('#fallback-status').textContent = '浏览器不允许自动复制，请用「下载加密结果文件」后作为附件发给上面三个邮箱，不行再加微信 w13908105242。';
-        toast('复制失败，请用下载文件的方式', 5000, 'err');
-      }
-    } catch (err) {
-      $('#fallback-status').textContent = '准备失败：' + err.message;
-      toast('准备失败：' + err.message, 5000, 'err');
+      const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify({ subject, text }), signal: ctrl.signal });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) throw new Error(data.error || ('HTTP ' + res.status));
+      return data;
     } finally {
-      if (btn) btn.disabled = false;
+      clearTimeout(timer);
     }
   }
 
-  function downloadPlainResult() {
-    if (!state.report) { toast('请先完成评分', 4200, 'err'); return; }
-    const pkg = state.fullPkg;
-    if (!pkg) { prepareReportAssets(); toast('正在准备，请稍等 1 秒再点', 4200, 'err'); return; }
-    const code = `===BEGIN ANALYSIS===\n${JSON.stringify(pkg)}\n===END ANALYSIS===\n`;
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob([code], { type: 'text/plain;charset=utf-8' }));
-    a.download = `菌护禾-完整加密结果-${($('#cand-name').value || '同学').trim()}-${Date.now()}.txt`;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 3000);
-    $('#fallback-status').textContent = '已下载加密结果文件：请用邮件把它作为附件发给 2160634966@qq.com、2715240991@qq.com、355594812@qq.com；不行再加微信 w13908105242（备注来意）。';
-    toast('已下载加密结果文件，请手动发给上面三个邮箱', 4200, 'ok');
+  async function sendNow() {
+    const btn = $('#btn-mail');
+    const text = buildText();
+    btn.disabled = true;
+    btn.textContent = '正在发送…';
+    $('#mail-status').textContent = '正在通过团队服务器发送，最多等 20 秒…';
+    let ok = false;
+    try {
+      await Promise.race([
+        sendViaBackend(mailSubject(), text),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('TIMEOUT')), 20000)),
+      ]);
+      ok = true;
+      state.sent = true;
+      $('#mail-status').textContent = '✅ 已发送到团队邮箱（2160634966 / 2715240991 / 355594812），可以关闭页面了。';
+      toast('已发送到团队邮箱', 5000, 'ok');
+      btn.textContent = '已发送';
+      btn.disabled = true;
+    } catch (err) {
+      const m = (err && (err.message === 'TIMEOUT' || err.name === 'AbortError')) ? '发送超时' : ('发送失败：' + (err.message || err));
+      $('#mail-status').textContent = m + '，请用下面的「手动发送」把内容发出去。';
+      toast(m + '，已切换为手动方式', 6000, 'err');
+      const mb = $('#manual-box');
+      if (mb) { mb.classList.remove('hidden'); mb.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+      const prev = $('#plain-preview');
+      if (prev) prev.value = text;
+    } finally {
+      if (!ok) { btn.disabled = false; btn.textContent = '① 一键发送给团队'; }
+    }
   }
 
-  async function copyRecipients() {
+  async function copyPlain() {
+    const text = buildText();
+    let ok = false;
     try {
-      await navigator.clipboard.writeText(recipients());
-      toast('已复制收件人：' + recipients(), 4200, 'ok');
+      await navigator.clipboard.writeText(text);
+      ok = true;
     } catch (_) {
-      toast('复制失败，请手动输入：' + recipients(), 4200, 'err');
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        ok = document.execCommand('copy');
+        ta.remove();
+      } catch (_) {}
+    }
+    const st = $('#fallback-status');
+    if (ok) {
+      if (st) st.textContent = '已复制。请粘到自己的邮箱，发给 2160634966@qq.com、2715240991@qq.com、355594812@qq.com。';
+      toast('已复制报名内容', 4200, 'ok');
+    } else {
+      if (st) st.textContent = '复制失败，请手动选择下方文本复制。';
     }
   }
 
-  /* ---------------- 草稿 ---------------- */
-  function saveDraft() {
-    try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify({
-        direction: state.direction, contact: state.contact, answers: state.answers, intro: state.intro, introTries: state.introTries,
-      }));
-    } catch (_) {}
-  }
-  function restoreDraft() {
-    try {
-      const d = JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}');
-      if (d && typeof d === 'object') {
-        if (d.direction) state.direction = d.direction;
-        if (typeof d.contact === 'string') state.contact = d.contact;
-        if (d.answers) state.answers = d.answers;
-        if (typeof d.intro === 'string') state.intro = d.intro;
-        if (Number.isFinite(d.introTries)) state.introTries = d.introTries;
-      }
-    } catch (_) {}
+  function downloadPlain() {
+    const text = buildText();
+    const name = (($('#cand-name') && $('#cand-name').value) || '同学').trim();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
+    a.download = '菌护禾-报名-' + name + '-' + Date.now() + '.txt';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+    const st = $('#fallback-status');
+    if (st) st.textContent = '已下载 .txt。请用邮件或微信把它发给团队。';
   }
 
   /* ---------------- 流程 ---------------- */
@@ -803,44 +314,73 @@ ${JSON.stringify(pkg)}
       li.classList.toggle('active', k === n);
       li.classList.toggle('done', k < n);
     });
-    if (n === 4) {
-      renderReport();
-      setTimeout(() => { const r = document.querySelector('#report'); if (r) r.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 50);
-    }
+    if (n === 5) renderSummary();
     window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function renderSummary() {
+    const name = (($('#cand-name') && $('#cand-name').value) || '同学').trim();
+    const contact = (($('#cand-contact') && $('#cand-contact').value) || '').trim();
+    const rows = [
+      ['姓名', name],
+      ['联系方式', contact],
+      ['想加入方向', dir().name],
+      ['年级 / 经验', $('#cand-exp') ? $('#cand-exp').value : ''],
+      ['选择题', '已答 ' + Object.keys(state.answers).length + ' / ' + questionsFor(state.direction).length],
+      ['自我介绍', (($('#intro-text') ? $('#intro-text').value : '').trim().length) + ' 字'],
+      ['简答题', shortQuestions().filter((q) => (state.short[q.id] || '').trim()).length + ' / ' + shortQuestions().length + ' 已填'],
+    ];
+    $('#summary').innerHTML = rows.map(([k, v]) => `<div class="sum-row"><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('');
+    const prev = $('#plain-preview');
+    if (prev) prev.value = buildText();
+  }
+
+  function requireContact() {
+    const el = $('#cand-contact');
+    const v = (el.value || '').trim();
+    if (!v) {
+      el.classList.add('error');
+      showNotice($('#mcq-notice'), '请先填写联系方式（手机号或微信号），团队要靠它联系你。');
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.focus();
+      toast('联系方式必填', 4200, 'err');
+      return false;
+    }
+    el.classList.remove('error');
+    return true;
   }
 
   function resetAll() {
     state.answers = {};
     state.intro = '';
-    state.introScore = null;
-    state.introTries = 0;
-    state.report = null;
-    state.encPackage = null;
+    state.short = {};
+    state.contact = '';
+    state.sent = false;
     try { localStorage.removeItem(DRAFT_KEY); } catch (_) {}
     $('#cand-name').value = '';
+    $('#cand-contact').value = '';
     $('#intro-text').value = '';
     $('#intro-count').textContent = '0 / 3000';
-    $('#intro-result').classList.add('hidden');
     renderMCQ();
-    refreshIntroButton();
+    renderShort();
     goStep(1);
     toast('已重新开始');
   }
 
   /* ---------------- 事件 ---------------- */
   function bind() {
+    $('#btn-start-eval').addEventListener('click', () => { hideNotice($('#mcq-notice')); goStep(2); });
+
     $('#cand-name').addEventListener('input', saveDraft);
-    if ($('#cand-contact')) $('#cand-contact').addEventListener('input', () => { state.contact = $('#cand-contact').value; saveDraft(); });
+    $('#cand-contact').addEventListener('input', (e) => { state.contact = e.target.value; e.target.classList.remove('error'); saveDraft(); });
     $('#cand-exp').addEventListener('change', saveDraft);
     $('#intro-text').addEventListener('input', () => {
       state.intro = $('#intro-text').value;
-      $('#intro-count').textContent = `${state.intro.length} / 3000`;
+      $('#intro-count').textContent = state.intro.length + ' / 3000';
       saveDraft();
     });
 
-    if ($('#btn-start-eval')) $('#btn-start-eval').addEventListener('click', () => { hideNotice($('#mcq-notice')); goStep(2); });
-    if ($('#btn-to-step3')) $('#btn-to-step3').addEventListener('click', () => {
+    $('#btn-to-step3').addEventListener('click', () => {
       if (!requireContact()) return;
       const qs = questionsFor(state.direction);
       const missing = qs.filter((q) => state.answers[q.id] === undefined);
@@ -849,95 +389,86 @@ ${JSON.stringify(pkg)}
           const q = qs.find((x) => x.id === card.dataset.qid);
           card.classList.toggle('error', !!q && state.answers[q.id] === undefined);
         });
-        showNotice($('#mcq-notice'), `还有 ${missing.length} 题没有选，请全部选完再进入下一步（已用红框标出）。`, 'err');
+        showNotice($('#mcq-notice'), '还有 ' + missing.length + ' 题没有选，请选完再进入下一步（已用红框标出）。');
         const first = document.querySelector('#mcq-list .q-card.error');
         if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        toast(`还有 ${missing.length} 题没选`, 4200, 'err');
+        toast('还有 ' + missing.length + ' 题没选', 4200, 'err');
         return;
       }
       hideNotice($('#mcq-notice'));
       goStep(3);
     });
-    $('#btn-score-intro').addEventListener('click', async (e) => {
-      if (state.introTries >= MAX_INTRO_TRIES) return;
-      const btn = e.currentTarget;
-      btn.disabled = true;
-      try {
-        const r = await scoreIntro(state.intro);
-        state.introTries += 1;
-        if (!state.introScore || r.total > state.introScore.total) state.introScore = r;
-        renderIntroResult(state.introScore);
-        saveDraft();
-        toast(`已提交（第 ${state.introTries} 次，共 3 次机会）；可以直接进入下一步`, 4200, 'ok');
-        const next = $('#btn-to-step4');
-        if (next) { next.classList.remove('ghost'); next.classList.add('primary'); }
-      } catch (err) {
-        toast('提交失败：' + err.message, 5000, 'err');
-      } finally {
-        refreshIntroButton();
-      }
-    });
+
     $('#btn-to-step4').addEventListener('click', () => {
-      if (!requireContact()) return;
       state.intro = $('#intro-text').value;
       saveDraft();
       goStep(4);
     });
 
+    $('#btn-to-step5').addEventListener('click', () => {
+      const missing = shortQuestions().filter((q) => !(state.short[q.id] || '').trim());
+      if (missing.length) {
+        toast('还有 ' + missing.length + ' 道简答题没填，先简单写一句也行', 4200, 'err');
+        const first = $('#short-list .short-input');
+        if (first) first.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        return;
+      }
+      goStep(5);
+    });
 
-    $('#btn-mail').addEventListener('click', openMail);
-    if ($('#btn-eml')) $('#btn-eml').addEventListener('click', downloadEml);
-        $('#btn-copy-mail').addEventListener('click', copyMailContent);
-    $('#btn-copy-to').addEventListener('click', copyRecipients);
-    if ($('#btn-manual')) $('#btn-manual').addEventListener('click', () => {
+    $('#btn-mail').addEventListener('click', sendNow);
+    $('#btn-manual').addEventListener('click', () => {
       const box = $('#manual-box');
       if (!box) return;
       box.classList.toggle('hidden');
-      if (!box.classList.contains('hidden')) box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (!box.classList.contains('hidden')) {
+        const prev = $('#plain-preview');
+        if (prev) prev.value = buildText();
+        box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
     });
-    if ($('#btn-copy-result')) $('#btn-copy-result').addEventListener('click', copyPlainResult);
-    if ($('#btn-download-result')) $('#btn-download-result').addEventListener('click', downloadPlainResult);
-    if ($('#btn-restart')) $('#btn-restart').addEventListener('click', resetAll);
+    $('#btn-copy-result').addEventListener('click', copyPlain);
+    $('#btn-download-result').addEventListener('click', downloadPlain);
+    $('#btn-restart').addEventListener('click', resetAll);
   }
 
+  /* ---------------- 启动 ---------------- */
   async function init() {
     try {
       state.data = await loadData();
-      $('#disclaimer').textContent = state.data.disclaimer || '';
+      if ($('#disclaimer')) $('#disclaimer').textContent = state.data.disclaimer || '';
       restoreDraft();
       renderProjectIntro();
-      renderTeam();
       renderDirections();
       renderMCQ();
+      renderShort();
       if ($('#cand-contact')) $('#cand-contact').value = state.contact || '';
-      $('#intro-text').value = state.intro;
-      $('#intro-count').textContent = `${state.intro.length} / 3000`;
-      refreshIntroButton();
+      $('#intro-text').value = state.intro || '';
+      $('#intro-count').textContent = ($('#intro-text').value || '').length + ' / 3000';
       bind();
       const demo = new URLSearchParams(location.search).get('demo') === '1';
       if (demo) runDemo(); else goStep(1);
     } catch (err) {
       console.error(err);
-      $('#mcq-list').innerHTML = `<div class="card"><h3>加载失败</h3><p class="hint">无法读取题库（data/questions.json）。请通过 HTTP 打开本页。</p></div>`;
+      if ($('#mcq-list')) $('#mcq-list').innerHTML = '<div class="card"><h3>加载失败</h3><p class="hint">无法读取题库（data/questions.json），请通过 HTTP 打开本页。</p></div>';
     }
   }
 
   function runDemo() {
-    state.direction = 'tech';
-    $('#cand-direction').value = 'tech';
-    markDirection();
+    selectDirection('tech');
     $('#cand-name').value = '演示同学';
     state.contact = '演示联系方式 13800000000';
-    if ($('#cand-contact')) $('#cand-contact').value = state.contact;
-    state.answers = {};
-    questionsFor('tech').forEach((q, i) => { state.answers[q.id] = [1, 2, 1, 1, 2][i] || 1; });
+    $('#cand-contact').value = state.contact;
+    const qs = questionsFor('tech');
+    qs.forEach((q, i) => { state.answers[q.id] = Math.min(i, q.options.length - 1); });
     renderMCQ();
-    state.intro = '我是湖南科技大学园艺专业大二学生，跟着老师做过草莓连作障碍的盆栽试验：3 个处理、3 次重复，第 7 天取根际土测活菌。我负责取样与平板计数，最后处理组比对照高约 0.8 个 log。这段经历让我学会把“感觉有效”变成可测指标。';
-    $('#intro-text').value = state.intro;
-    $('#intro-count').textContent = `${state.intro.length} / 3000`;
-    state.introTries = 1;
-    state.introScore = heuristicIntro(state.intro);
-    goStep(4);
+    const intro = '我是湖南科技大学园艺专业大二学生，跟着老师做过草莓连作障碍的盆栽试验：3 个处理、3 次重复，第 7 天取根际土测活菌。我负责取样与平板计数，这段经历让我学会把“感觉有效”变成可测指标。';
+    $('#intro-text').value = intro;
+    state.intro = intro;
+    $('#intro-count').textContent = intro.length + ' / 3000';
+    shortQuestions().forEach((q, i) => { state.short[q.id] = i === 0 ? '想跟着团队把方案真正落到棚里，也想学试验设计。' : '每周约 6 小时，偏试验与数据整理。'; });
+    renderShort();
+    goStep(5);
   }
 
   document.addEventListener('DOMContentLoaded', init);

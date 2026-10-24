@@ -4,8 +4,8 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>金种子杯 · 菌护禾 · 团队招募</title>
-<meta name="description" content="湖南科技大学学生团队 · 金种子杯项目菌护禾的队友招募评估：项目介绍、5 道情境题、自我介绍、评分。" />
-<link rel="stylesheet" href="assets/styles.css?v=20261024a" />
+<meta name="description" content="湖南科技大学学生团队 · 金种子杯项目菌护禾的队友招募：项目介绍、选择题、自我介绍、简答题。" />
+<link rel="stylesheet" href="assets/styles.css?v=20261024c" />
 </head>
 <body>
 
@@ -22,9 +22,10 @@
   <nav class="stepper" aria-label="步骤">
     <ol>
       <li data-step="1" class="active"><span>01</span>项目介绍</li>
-      <li data-step="2"><span>02</span>情境测评</li>
+      <li data-step="2"><span>02</span>选择题</li>
       <li data-step="3"><span>03</span>自我介绍</li>
-      <li data-step="4"><span>04</span>评分</li>
+      <li data-step="4"><span>04</span>简答题</li>
+      <li data-step="5"><span>05</span>提交</li>
     </ol>
   </nav>
 
@@ -35,16 +36,16 @@
       <p class="hint" id="project-lead"></p>
       <div id="project-intro"></div>
       <div class="row between intro-actions">
-        <button id="btn-start-eval" class="btn primary" type="button">我已了解，开始测评</button>
+        <button id="btn-start-eval" class="btn primary" type="button">我已了解，开始填写</button>
       </div>
     </div>
   </section>
 
-  <!-- Step 2 · 情境测评 -->
+  <!-- Step 2 · 选择题 -->
   <section id="step2" class="step hidden">
     <div class="card">
       <h2>想加入的方向</h2>
-      <p class="hint">只分三个大方向；选完后 5 道题会自动适配该方向。</p>
+      <p class="hint">只分三个大方向；选完后下面的题目会自动适配该方向。</p>
       <div id="direction-cards" class="role-grid"></div>
     </div>
 
@@ -71,15 +72,14 @@
           </select>
         </label>
       </div>
-      <p class="hint">共 5 题：2 道通用、1 道项目、2 道方向专业题；无标准答案，按第一反应作答。联系方式会随结果一起发给团队，请填真实可联系的。</p>
+      <p class="hint">共 5 题：2 道通用、1 道项目、2 道方向题；没有标准答案，按第一反应选即可。</p>
     </div>
 
     <div id="mcq-notice" class="notice hidden"></div>
-
     <div id="mcq-list"></div>
 
     <div class="row end">
-      <button id="btn-to-step3" class="btn primary" type="button">下一步</button>
+      <button id="btn-to-step3" class="btn primary" type="button">下一步：自我介绍</button>
     </div>
   </section>
 
@@ -87,37 +87,34 @@
   <section id="step3" class="step hidden">
     <div class="card">
       <h2>自我介绍</h2>
-      <p class="hint">不限结构，写你想让团队了解的内容就行。按本地规则评分。共 3 次提交机会，提交 1 次即可进入下一步。</p>
-      <textarea id="intro-text" rows="12" maxlength="3000" placeholder="想写什么就写什么：你的经历、做过的事、擅长什么、想加入的原因……"></textarea>
+      <p class="hint">不限结构，写你想让团队了解的内容就行：经历、做过的事、擅长什么、想加入的原因。</p>
+      <textarea id="intro-text" rows="12" maxlength="3000" placeholder="想写什么就写什么……"></textarea>
       <div class="row between">
         <span id="intro-count" class="hint">0 / 3000</span>
-        <div class="row">
-          <button id="btn-score-intro" class="btn primary" type="button">提交并评分</button>
-          <button id="btn-to-step4" class="btn primary" type="button">下一步：评分</button>
-        </div>
+        <button id="btn-to-step4" class="btn primary" type="button">下一步：简答题</button>
       </div>
-      <p id="intro-tries" class="hint"></p>
-      <div id="intro-result" class="result hidden"></div>
     </div>
   </section>
 
-  <!-- Step 4 · 评分 -->
+  <!-- Step 4 · 简答题 -->
   <section id="step4" class="step hidden">
-    <div class="big-warning" id="send-warning">⚠ 请在下面发送结果！</div>
+    <div class="card">
+      <h2>简答题</h2>
+      <p class="hint">两道简答题，每道写 1–3 句话即可，不用长篇大论。</p>
+      <div id="short-list"></div>
+      <div class="row end">
+        <button id="btn-to-step5" class="btn primary" type="button">下一步：确认并提交</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 5 · 提交 -->
+  <section id="step5" class="step hidden">
+    <div class="big-warning" id="send-warning">⚠ 请在下面把报名信息发给团队！</div>
 
     <div class="card">
-      <h2>评分</h2>
-      <div id="report"></div>
-    </div>
-
-    <div class="card" id="send-card">
-      <h2>面试完成</h2>
-      <p class="hint">
-        请把本次面试结果发送给团队。<br>
-        收件人：<b>2160634966@qq.com</b>、<b>2715240991@qq.com</b>、<b>355594812@qq.com</b>
-        <button id="btn-copy-to" class="btn small ghost" type="button">复制收件人</button><br>
-        <span class="warn-text">未发送将无法进入后续筛选，可能会失去这次机会。</span>
-      </p>
+      <h2>确认并提交</h2>
+      <div id="summary"></div>
 
       <div class="row">
         <button id="btn-mail" class="btn primary" type="button">① 一键发送给团队</button>
@@ -127,25 +124,20 @@
 
       <div id="manual-box" class="fallback-box hidden">
         <p class="hint">
-          手动方式：把<strong>加密结果</strong>发给上面三个邮箱（复制后粘到自己的邮箱发送，或下载文件作为附件发送）。<br>
-          实在发不出去，再加微信 <b>w13908105242</b>（<b>备注来意</b>）。团队在结果查看页粘贴即可看，不会直接显示分析内容。
-        </p>
-        <p class="hint">
-          发送时内容里会有一段很长的、看起来像乱码的内容，这是<b>正常的</b>，它就是加密后的结果，<b>不用删除或修改</b>。
+          手动方式：复制下面的报名内容，粘到自己的邮箱发给三个收件人；实在不行再加微信 <b>w13908105242</b>（<b>备注来意</b>）。
         </p>
         <div class="row">
-          <button id="btn-copy-result" class="btn" type="button">复制加密结果</button>
-          <button id="btn-download-result" class="btn ghost" type="button">下载加密结果文件</button>
-          <button id="btn-eml" class="btn ghost small" type="button">下载完整邮件文件</button>
-          <button id="btn-copy-mail" class="btn ghost small" type="button">复制邮件内容</button>
+          <button id="btn-copy-result" class="btn" type="button">复制报名内容</button>
+          <button id="btn-download-result" class="btn ghost" type="button">下载报名内容 .txt</button>
         </div>
         <p id="fallback-status" class="hint"></p>
+        <textarea id="plain-preview" rows="12" readonly></textarea>
       </div>
-      <textarea id="mail-preview" class="hidden"></textarea>
-      <textarea id="enc-output" class="hidden"></textarea>
-      <p id="enc-status" class="hidden"></p>
-    </div>
 
+      <div class="row end">
+        <button id="btn-restart" class="btn ghost" type="button">重新填写</button>
+      </div>
+    </div>
   </section>
 
   <p class="disclaimer" id="disclaimer"></p>
@@ -159,7 +151,7 @@
 
 <div id="toast" class="toast hidden" role="status"></div>
 
-<script src="assets/config.js?v=20261024a"></script>
-<script src="assets/app.js?v=20261024a"></script>
+<script src="assets/config.js?v=20261024c"></script>
+<script src="assets/app.js?v=20261024c"></script>
 </body>
 </html>

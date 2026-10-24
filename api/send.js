@@ -45,7 +45,7 @@ module.exports = async function handler(req, res) {
     return;
   }
   // 只收我们生成的加密结果，避免当垃圾邮件中继
-  if (text.indexOf('===BEGIN ANALYSIS===') < 0) {
+  if (text.indexOf('菌护禾') < 0 && text.indexOf('===BEGIN ANALYSIS===') < 0) {
     res.status(400).json({ ok: false, error: '内容格式不正确' });
     return;
   }
